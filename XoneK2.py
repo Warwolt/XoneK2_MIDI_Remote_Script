@@ -60,22 +60,22 @@ BUTTON_LL = 12
 BUTTON_LR = 15
 
 
-def button(notenr, name=None):
+def Button(notenr, name=None):
     rv = ButtonElement(True, MIDI_NOTE_TYPE, CHANNEL, notenr)
     if name is not None:
         rv.name = name
     return rv
 
 
-def fader(notenr):
+def Fader(notenr):
     return SliderElement(MIDI_CC_TYPE, CHANNEL, notenr)
 
 
-def knob(cc):
+def Knob(cc):
     return EncoderElement(MIDI_CC_TYPE, CHANNEL, cc, Live.MidiMap.MapMode.absolute)
 
 
-def encoder(cc):
+def Encoder(cc):
     return EncoderElement(MIDI_CC_TYPE, CHANNEL, cc, Live.MidiMap.MapMode.absolute)
 
 
@@ -90,7 +90,7 @@ class DynamicEncoder(EncoderElement):
         """
         self.growth = growth
         self.timeout = timeout
-        self.encoder = encoder(cc)
+        self.encoder = Encoder(cc)
         self.encoder.add_value_listener(self.handle_encoder_turn)
         self.sensitivity = 1.0
         self.last_event_value = None
@@ -340,13 +340,13 @@ class XoneK2(ControlSurface):
     def init_session(self):
         self.session = SessionComponent(NUM_TRACKS, NUM_SCENES)
         self.session.name = 'Session'
-        self.session.set_scene_bank_buttons(button(BUTTON_LL), button(BUTTON_LR))
+        self.session.set_scene_bank_buttons(Button(BUTTON_LL), Button(BUTTON_LR))
         self.session.update()
 
     def init_mixer(self):
         self.mixer = MixerWithDevices(
             num_tracks=NUM_TRACKS,
-            device_select=[button(PUSH_ENCODERS[i]) for i in range(NUM_TRACKS)],
+            device_select=[Button(PUSH_ENCODERS[i]) for i in range(NUM_TRACKS)],
             device_encoders=ENCODERS
         )
         self.mixer.id = 'Mixer'
@@ -354,13 +354,13 @@ class XoneK2(ControlSurface):
         self.song().view.selected_track = self.mixer.channel_strip(0)._track
 
         for i in range(NUM_TRACKS):
-            self.mixer.channel_strip(i).set_volume_control(fader(FADERS[i]))
-            self.mixer.channel_strip(i).set_solo_button(button(BUTTONS3[i]))
+            self.mixer.channel_strip(i).set_volume_control(Fader(FADERS[i]))
+            self.mixer.channel_strip(i).set_solo_button(Button(BUTTONS3[i]))
             self.mixer.set_eq_controls(i, (
-                knob(KNOBS3[i]),
-                knob(KNOBS2[i]),
-                knob(KNOBS1[i])))
-            self.mixer.set_device_controls(i, button(BUTTONS1[i]))
+                Knob(KNOBS3[i]),
+                Knob(KNOBS2[i]),
+                Knob(KNOBS1[i])))
+            self.mixer.set_device_controls(i, Button(BUTTONS1[i]))
 
         self.master_encoder = DynamicEncoder(
             ENCODER_LR, self.song().master_track.mixer_device.volume)
@@ -377,7 +377,7 @@ class XoneK2(ControlSurface):
             button_row = []
             for track_index in range(NUM_TRACKS):
                 note_nr = GRID[scene_index][track_index]
-                b = button(note_nr, name='Clip %d, %d button' % (scene_index, track_index))
+                b = Button(note_nr, name='Clip %d, %d button' % (scene_index, track_index))
                 button_row.append(b)
                 clip_slot = scene.clip_slot(track_index)
                 clip_slot.name = 'Clip slot %d, %d' % (scene_index, track_index)
@@ -385,9 +385,9 @@ class XoneK2(ControlSurface):
                 clip_slot.set_started_value(64)
                 clip_slot.set_launch_button(b)
             self.matrix.add_row(tuple(button_row))
-        stop_buttons = [button(note_nr) for note_nr in BUTTONS2]
+        stop_buttons = [Button(note_nr) for note_nr in BUTTONS2]
         self.session.set_stop_track_clip_buttons(stop_buttons)
 
     def init_tempo(self):
         self.transport = CustomTransportComponent()
-        self.transport.set_tempo_bumpers(button(PUSH_ENCODER_LR), button(PUSH_ENCODER_LL))
+        self.transport.set_tempo_bumpers(Button(PUSH_ENCODER_LR), Button(PUSH_ENCODER_LL))
