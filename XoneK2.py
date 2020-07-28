@@ -14,16 +14,10 @@ from _Framework.SessionComponent import SessionComponent
 from _Framework.SliderElement import SliderElement
 from _Framework.TransportComponent import TransportComponent
 
+import DebugPrint
 
 g_logger = None
-DEBUG = True
-
-
-def log(msg):
-    global g_logger
-    if DEBUG:
-        if g_logger is not None:
-            g_logger(msg)
+DEBUG = False
 
 
 EQ_DEVICES = {
@@ -209,30 +203,30 @@ class MixerWithDevices(MixerComponent):
         # assign each DeviceComponent to the first device on its track
         # this could be called before we construct self.devices
         if self.devices:
-            log("reassigning tracks")
+            DebugPrint.log_message("reassigning tracks to devices")
             tracks_to_use = self.get_active_tracks()
-            log("tracks_to_use has %d elements" % len(tracks_to_use))
-            log("devices has %d" % len(self.devices))
+            DebugPrint.log_message("tracks_to_use has %d elements" % len(tracks_to_use))
+            DebugPrint.log_message("devices has %d" % len(self.devices))
             for i, dev in enumerate(self.devices):
                 if i < len(tracks_to_use):
-                    log("device %d gets a track %s" % (i, tracks_to_use[i].name))
+                    DebugPrint.log_message("device %d gets a track %s" % (i, tracks_to_use[i].name))
                     self.assign_device_to_track(tracks_to_use[i], i)
                 else:
-                    log("device %d gets no track" % i)
+                    DebugPrint.log_message("device %d gets no track" % i)
                     self.assign_device_to_track(None, i)
         if self.eqs:
-            log("reassigning tracks")
+            DebugPrint.log_message("reassigning tracks to EQs")
             tracks_to_use = self.get_active_tracks()
-            log("tracks_to_use has %d elements" % len(tracks_to_use))
-            log("devices has %d" % len(self.devices))
+            DebugPrint.log_message("tracks_to_use has %d elements" % len(tracks_to_use))
+            DebugPrint.log_message("devices has %d" % len(self.devices))
             for i, eq in enumerate(self.eqs):
                 if i < len(tracks_to_use):
-                    log("device %d gets a track %s" % (i, tracks_to_use[i].name))
+                    DebugPrint.log_message("device %d gets a track %s" % (i, tracks_to_use[i].name))
                     self.assign_eq_to_track(tracks_to_use[i], i)
                 else:
-                    log("device %d gets no track" % i)
+                    DebugPrint.log_message("device %d gets no track" % i)
                     self.assign_eq_to_track(None, i)
-        self.light_up(self.active_track)
+        # self.light_up(self.active_track)
 
     def assign_device_to_track(self, track, i):
         # nuke existing listener
@@ -258,7 +252,7 @@ class MixerWithDevices(MixerComponent):
             dcb()
 
     def _on_device_changed(self, i):
-        log("_on_device_changed %d" % i)
+        DebugPrint.log_message("_on_device_changed %d" % i)
         # the device chain on track i changed-- reassign device if needed
         track = self.devices[i]["track"]
         device_comp = self.devices[i]["component"]
@@ -266,10 +260,10 @@ class MixerWithDevices(MixerComponent):
         if track.devices:
             # Find the first non-EQ device.
             for dev in track.devices:
-                log("examine device %s" % dev.class_name)
+                DebugPrint.log_message("examine device %s" % dev.class_name)
                 if dev.class_name not in EQ_DEVICES:
                     device = dev
-                    log("using %s" % device.class_name)
+                    DebugPrint.log_message("using %s" % device.class_name)
                     self.devices[i]["params"] = device.parameters[1:len(self.encoders)]
                     self.devices[i]["toggle"] = device.parameters[0]
                     break
@@ -300,7 +294,7 @@ class MixerWithDevices(MixerComponent):
             dcb()
 
     def _on_eq_changed(self, i):
-        log("_on_eq_changed %d" % i)
+        DebugPrint.log_message("_on_eq_changed %d" % i)
         # the device chain on track i changed-- reassign device if needed
         track = self.eqs[i]["track"]
         device_comp = self.eqs[i]["component"]
