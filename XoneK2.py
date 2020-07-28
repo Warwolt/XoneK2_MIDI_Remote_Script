@@ -116,12 +116,12 @@ class DynamicEncoder(EncoderElement):
 class CustomTransportComponent(TransportComponent):
     """TransportComponent with custom tempo support"""
 
-    def _replace_controller(self, attrname, cb, new_control):
+    def _replace_controller(self, attrname, callback, new_control):
         old_control = getattr(self, attrname, None)
         if old_control is not None:
-            old_control.remove_value_listener(cb)
+            old_control.remove_value_listener(callback)
         setattr(self, attrname, new_control)
-        new_control.add_value_listener(cb)
+        new_control.add_value_listener(callback)
         self.update()
 
     def set_tempo_bumpers(self, bump_up_control, bump_down_control):
@@ -153,7 +153,7 @@ class MixerWithDevices(MixerComponent):
         self.encoders = [DynamicEncoder(cc, None) for cc in device_encoders]
         for i in range(len(self._channel_strips)):
             dev = {
-                "cb": None,
+                "callback": None,
                 "component": DeviceComponent(),
                 "track": None,
                 "params": [],
@@ -163,7 +163,7 @@ class MixerWithDevices(MixerComponent):
             self.register_components(dev["component"])
             eq = {
                 "component": DeviceComponent(),
-                "cb": None,
+                "callback": None,
                 "track": None
             }
             self.eqs.append(eq)
@@ -232,9 +232,9 @@ class MixerWithDevices(MixerComponent):
         # nuke existing listener
         dev = self.devices[i]
         if dev["track"]:
-            dev["track"].remove_devices_listener(dev["cb"])
+            dev["track"].remove_devices_listener(dev["callback"])
             dev["track"] = None
-            dev["cb"] = None
+            dev["callback"] = None
             dev["params"] = []
             dev["toggle"] = None
             dev["component"].set_lock_to_device(False, None)
@@ -242,14 +242,14 @@ class MixerWithDevices(MixerComponent):
 
         if track is not None:
             # listen for changes to the device chain
-            def dcb():
+            def device_callback():
                 return self._on_device_changed(i)
-            dev["cb"] = dcb
+            dev["callback"] = device_callback
             dev["track"] = track
-            track.add_devices_listener(dcb)
+            track.add_devices_listener(device_callback)
 
             # force an update to attach to any existing device
-            dcb()
+            device_callback()
 
     def _on_device_changed(self, i):
         DebugPrint.log_message("_on_device_changed %d" % i)
@@ -276,22 +276,22 @@ class MixerWithDevices(MixerComponent):
         # nuke existing listener
         dev = self.eqs[i]
         if dev["track"]:
-            dev["track"].remove_devices_listener(dev["cb"])
+            dev["track"].remove_devices_listener(dev["callback"])
             dev["track"] = None
-            dev["cb"] = None
+            dev["callback"] = None
             dev["component"].set_lock_to_device(False, None)
             dev["component"].set_device(None)
 
         if track is not None:
             # listen for changes to the device chain
-            def dcb():
+            def device_callback():
                 return self._on_eq_changed(i)
-            dev["cb"] = dcb
+            dev["callback"] = device_callback
             dev["track"] = track
-            track.add_devices_listener(dcb)
+            track.add_devices_listener(device_callback)
 
             # force an update to attach to any existing device
-            dcb()
+            device_callback()
 
     def _on_eq_changed(self, i):
         DebugPrint.log_message("_on_eq_changed %d" % i)
