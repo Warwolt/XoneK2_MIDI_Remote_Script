@@ -170,8 +170,8 @@ class MixerWithDevices(MixerComponent):
             self.register_components(eq["component"])
         self._reassign_tracks()
         if device_select:
-            for i, b in enumerate(device_select):
-                b.add_value_listener(partial(self.on_device_select_push, i))
+            for i, button in enumerate(device_select):
+                button.add_value_listener(partial(self.on_device_select_push, i))
 
     def on_device_select_push(self, track, value):
         if value > 1:
@@ -184,9 +184,9 @@ class MixerWithDevices(MixerComponent):
 
     def light_up(self, which_track):
         if self.device_select:
-            for i, b in enumerate(self.device_select):
+            for i, button in enumerate(self.device_select):
                 velocity = 127 if i == which_track else 0
-                b.send_midi((144 + CHANNEL, b._msg_identifier, velocity))
+                button.send_midi((144 + CHANNEL, button._msg_identifier, velocity))
 
     def attach_encoders(self):
         for control, target in zip(self.encoders, self.devices[self.active_track]["params"]):
@@ -377,13 +377,13 @@ class XoneK2(ControlSurface):
             button_row = []
             for track_index in range(NUM_TRACKS):
                 note_nr = GRID[scene_index][track_index]
-                b = Button(note_nr, name='Clip %d, %d button' % (scene_index, track_index))
-                button_row.append(b)
+                button = Button(note_nr, name='Clip %d, %d button' % (scene_index, track_index))
+                button_row.append(button)
                 clip_slot = scene.clip_slot(track_index)
                 clip_slot.name = 'Clip slot %d, %d' % (scene_index, track_index)
                 clip_slot.set_stopped_value(0)
                 clip_slot.set_started_value(64)
-                clip_slot.set_launch_button(b)
+                clip_slot.set_launch_button(button)
             self.matrix.add_row(tuple(button_row))
         stop_buttons = [Button(note_nr) for note_nr in BUTTONS2]
         self.session.set_stop_track_clip_buttons(stop_buttons)
