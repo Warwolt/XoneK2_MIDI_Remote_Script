@@ -78,6 +78,8 @@ class XoneK2(ControlSurface):
             fine_tempo_enc.add_value_listener(self.on_fine_tempo_change)
             fine_tempo_pushed.add_value_listener(self.on_fine_encoder_push)
 
+
+
     def on_nudge_back(self, value):
         """ Called when nudge back button pressed. """
         if value == 127:
@@ -97,7 +99,10 @@ class XoneK2(ControlSurface):
             self.dim_element('exit_setup_button', 'orange')
 
     def on_coarse_tempo_change(self, value):
-        """ Called when the coarse tempo encoder is rotated. """
+        """
+        Called when the coarse tempo encoder is rotated.
+        Change the tempo in whole steps, or in tenths if encoder is pushed.
+        """
         if value == 1:
             if self.coarse_encoder_is_pushed:
                 self.song.tempo += 0.1
@@ -117,7 +122,10 @@ class XoneK2(ControlSurface):
             self.coarse_encoder_is_pushed = False
 
     def on_fine_tempo_change(self, value):
-        """ Called when the fine tempo encoder is rotated. """
+        """
+        Called when the fine tempo encoder is rotated.
+        Change the tempo in tenths, or in cents if encoder is pushed.
+        """
         if value == 1:
             if self._fine_encoder_is_pushed:
                 self.song.tempo += 0.01
