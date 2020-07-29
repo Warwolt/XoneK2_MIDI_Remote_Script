@@ -20,7 +20,65 @@ import DebugPrint
 import inspect
 
 # The Xone K2 uses midi channel 15 (zero indexed gives 14)
-MIDI_CHANNEL_NUM = 15 -1
+MIDI_CHANNEL_NUM = 15 - 1
+
+class XoneK2(ControlSurface):
+    """
+    The top level class of the script that extends the ControlSurface class,
+    and is returned from create_instance in the init file.
+    """
+    def __init__(self, c_instance):
+        super(XoneK2, self).__init__(c_instance, False)
+        DebugPrint.log_message("XoneK2 constructor called")
+
+        with self.component_guard():
+            self._set_suppress_rebuild_requests(True)
+            self._c_instance = c_instance
+            self._note_to_midi = self._create_note_to_midi_dict()
+            self._element_color_to_midi = self._create_element_color_dict()
+            self.light_up_element('layer_button', 'green')
+
+
+    def _create_note_to_midi_dict(self):
+        """
+        Create a dict for the the midi implementation table in the Xone K2
+        manual, to make it easier to refer to the values of the midi notes.
+
+        The key value pairs are e.g. ('c#1', 25) or ('g4', 67).
+        """
+        notes = ['c','c#','d','d#','e','f', 'f#', 'g','g#','a','a#','b']
+        octaves = [str(num) for num in range(-1, 10)]
+        octave_notes = [note + octave for octave in octaves for note in notes]
+        return {octave_notes[i]: i for i in range(len(octave_notes))}
+
+
+    def _create_element_color_dict(self):
+        """
+        Create a dict for looking up the midi note to send to light a
+        controller element, corresponding to the table in the Xone K2 manual.
+        """
+        return {
+            'layer_button': {
+                'red': self._note_to_midi['c0'],
+                'orange': self._note_to_midi['e0'],
+                'green': self._note_to_midi['g#0'],
+            }
+        }
+
+
+    def light_up_element(self, element_name, color):
+        """
+        Send a midi message to light up an element.
+
+        element_color_to_midi: dict returned from _create_element_color_dict()
+        element_name:          the name of the element to light up
+        color:                 a string 'red', 'orange', or 'green'
+        """
+        status = MIDI_NOTE_ON_STATUS + MIDI_CHANNEL_NUM
+        note = self._element_color_to_midi[element_name][color]
+        velocity = 127
+        self._c_instance.send_midi((status, note, velocity))
+
 
 def Button(note_num, name=None):
     rv = ButtonElement(True, MIDI_NOTE_TYPE, MIDI_CHANNEL_NUM, note_num)
@@ -41,31 +99,3 @@ def Knob(cc):
 def Encoder(cc):
     return EncoderElement(MIDI_CC_TYPE, MIDI_CHANNEL_NUM, cc,
         Live.MidiMap.MapMode.absolute)
-
-
-class XoneK2(ControlSurface):
-    def __init__(self, c_instance):
-        super(XoneK2, self).__init__(c_instance, False)
-        DebugPrint.log_message("XoneK2 constructor called")
-
-        with self.component_guard():
-            self._set_suppress_rebuild_requests(True)
-
-            # experiment to light up LAYER button red
-            # https://www.allen-heath.com/media/XoneK2_UG_AP8509_3.pdf
-            status = MIDI_NOTE_ON_STATUS + MIDI_CHANNEL_NUM
-            MIDI_NOTE_C0 = 0x0C
-            velocity = 127
-            c_instance.send_midi((status, MIDI_NOTE_C0, velocity))
-
-            # self.init_session()
-            # self.init_mixer()
-            # self.init_matrix()
-            # self.init_tempo()
-
-            # # connect mixer to session
-            # self.session.set_mixer(self.mixer)
-            # self.session.update()
-            # self.set_highlighting_session_component(self.session)
-            # self._set_suppress_rebuild_requests(False)
-
