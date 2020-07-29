@@ -56,6 +56,7 @@ class XoneK2(ControlSurface):
             self._set_suppress_rebuild_requests(True)
             self.c_instance = c_instance
             self.song = c_instance.song()
+            self.tracks = self.song.visible_tracks
             self.note_to_midi = self._create_note_to_midi_dict()
             self.element_color_to_midi = self._create_element_color_dict()
             self.coarse_encoder_is_pushed = False
@@ -78,7 +79,18 @@ class XoneK2(ControlSurface):
             fine_tempo_enc.add_value_listener(self.on_fine_tempo_change)
             fine_tempo_pushed.add_value_listener(self.on_fine_encoder_push)
 
-
+            # Mute buttons
+            self.mute_elements = ['matrix_button_i', 'matrix_button_j',
+                'matrix_button_k', 'matrix_button_l']
+            mute_buttons = [Button(0x1C), Button(0x1D),
+                Button(0x1E), Button(0x1F)]
+            for i in range(4):
+                track = self.tracks[i]
+                track.add_mute_listener(partial(self.on_track_mute_change, i))
+                mute_buttons[i].add_value_listener(
+                    partial(self.on_mute_button_push, i))
+                if not track.mute:
+                    self.light_up_element(self.mute_elements[i], 'red')
 
     def on_nudge_back(self, value):
         """ Called when nudge back button pressed. """
@@ -102,6 +114,8 @@ class XoneK2(ControlSurface):
         """
         Called when the coarse tempo encoder is rotated.
         Change the tempo in whole steps, or in tenths if encoder is pushed.
+
+        value: MIDI note value (1 = right turn, 127 = left turn)
         """
         if value == 1:
             if self.coarse_encoder_is_pushed:
@@ -115,7 +129,11 @@ class XoneK2(ControlSurface):
                 self.song.tempo -= 1.0
 
     def on_coarse_encoder_push(self, value):
-        """ Called when the coarse tempo encoder is pushed. """
+        """
+        Called when the coarse tempo encoder is pushed.
+
+        value: MIDI note value (127 = pushed, 0 = depressed)
+        """
         if value == 127:
             self.coarse_encoder_is_pushed = True
         else:
@@ -125,6 +143,8 @@ class XoneK2(ControlSurface):
         """
         Called when the fine tempo encoder is rotated.
         Change the tempo in tenths, or in cents if encoder is pushed.
+
+        value: MIDI note value (1 = right turn, 127 = left turn)
         """
         if value == 1:
             if self._fine_encoder_is_pushed:
@@ -138,11 +158,44 @@ class XoneK2(ControlSurface):
                 self.song.tempo -= 0.1
 
     def on_fine_encoder_push(self, value):
-        """ Called when the fine tempo encoder is pushed. """
+        """
+        Called when the fine tempo encoder is pushed.
+
+        value: MIDI note value (127 = pushed, 0 = depressed)
+        """
         if value == 127:
             self._fine_encoder_is_pushed = True
         else:
             self._fine_encoder_is_pushed = False
+
+    def on_track_mute_change(self, track_index):
+        """
+        Used to keep mute button led in sync with track muted state.
+
+        track_index: index of track to associate with this listener.
+        """
+        track = self.tracks[track_index]
+        mute_element = self.mute_elements[track_index]
+        if not track.mute:
+            self.light_up_element(mute_element,'red')
+        else:
+            self.dim_element(mute_element,'red')
+
+    def on_mute_button_push(self, track_index, value):
+        """
+        Toggles the muted state of the associated track.
+
+        track_index: index of track to associate with this listener.
+        value: MIDI note value (127 = pushed, 0 = depressed)
+        """
+        track = self.tracks[track_index]
+        mute_element = self.mute_elements[track_index]
+        if value == 127:
+            track.mute = not track.mute
+        if not track.mute:
+            self.light_up_element(mute_element,'red')
+        else:
+            self.dim_element(mute_element,'red')
 
     def light_up_element(self, element_name, color):
         """
@@ -398,4 +451,3 @@ class XoneK2(ControlSurface):
                 'green': self.note_to_midi['b0'],
             }
         }
-
