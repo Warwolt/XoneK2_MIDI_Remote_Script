@@ -57,9 +57,15 @@ class XoneK2(ControlSurface):
             self._note_to_midi = self._create_note_to_midi_dict()
             self._element_color_to_midi = self._create_element_color_dict()
             self.dim_all_elements()
-            for element, _ in self._element_color_to_midi.iteritems():
-                self.light_up_element(element, 'red')
 
+            self.nudge_back_button = Button(0x0C, 'layer')
+            self.nudge_back_button.add_value_listener(self.on_nudge_back)
+
+    def on_nudge_back(self, value):
+        if value == 127:
+            self.light_up_element('layer_button', 'red')
+        else:
+            self.dim_element('layer_button')
 
     def light_up_element(self, element_name, color):
         """
@@ -73,8 +79,7 @@ class XoneK2(ControlSurface):
         velocity = 127
         self._c_instance.send_midi((status, note, velocity))
 
-
-    def dim_element(self, element_name, color):
+    def dim_element(self, element_name, color='red'):
         """
         Send a midi message to turn off the light of an element.
 
@@ -85,7 +90,6 @@ class XoneK2(ControlSurface):
         note = self._element_color_to_midi[element_name][color]
         velocity = 127
         self._c_instance.send_midi((status, note, velocity))
-
 
     def dim_all_elements(self):
         """
@@ -101,7 +105,6 @@ class XoneK2(ControlSurface):
         for element, _ in self._element_color_to_midi.iteritems():
             self.dim_element(element, 'green')
 
-
     def _create_note_to_midi_dict(self):
         """
         Create a dict for the the midi implementation table in the Xone K2
@@ -113,7 +116,6 @@ class XoneK2(ControlSurface):
         octaves = [str(num) for num in range(-1, 10)]
         octave_notes = [note + octave for octave in octaves for note in notes]
         return {octave_notes[i]: i for i in range(len(octave_notes))}
-
 
     def _create_element_color_dict(self):
         """
