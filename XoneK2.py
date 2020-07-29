@@ -21,12 +21,14 @@ import inspect
 
 # The Xone K2 uses midi channel 15 (zero indexed gives 14)
 MIDI_CHANNEL_NUM = 15 - 1
+MUTE_BUTTON_COLOR = 'red'
+CUE_BUTTON_COLOR = 'orange'
 
 def Button(note_num, name=None):
-    rv = ButtonElement(True, MIDI_NOTE_TYPE, MIDI_CHANNEL_NUM, note_num)
+    button = ButtonElement(True, MIDI_NOTE_TYPE, MIDI_CHANNEL_NUM, note_num)
     if name is not None:
-        rv.name = name
-    return rv
+        button.name = name
+    return button
 
 
 def Fader(note_num):
@@ -90,7 +92,22 @@ class XoneK2(ControlSurface):
                 mute_buttons[i].add_value_listener(
                     partial(self.on_mute_button_push, i))
                 if not track.mute:
-                    self.light_up_element(self.mute_elements[i], 'red')
+                    self.light_up_element(
+                        self.mute_elements[i], MUTE_BUTTON_COLOR)
+
+            # Cue buttons
+            self.cue_elements = ['matrix_button_a', 'matrix_button_b',
+                'matrix_button_c', 'matrix_button_d']
+            cue_buttons = [Button(0x24), Button(0x25),
+                Button(0x26), Button(0x27)]
+            for i in range(4):
+                track = self.tracks[i]
+                track.add_solo_listener(partial(self.on_track_cue_change, i))
+                cue_buttons[i].add_value_listener(
+                    partial(self.on_cue_button_push, i))
+                if track.solo:
+                    self.light_up_element(
+                        self.cue_elements[i], CUE_BUTTON_COLOR)
 
     def on_nudge_back(self, value):
         """ Called when nudge back button pressed. """
@@ -177,9 +194,9 @@ class XoneK2(ControlSurface):
         track = self.tracks[track_index]
         mute_element = self.mute_elements[track_index]
         if not track.mute:
-            self.light_up_element(mute_element,'red')
+            self.light_up_element(mute_element, MUTE_BUTTON_COLOR)
         else:
-            self.dim_element(mute_element,'red')
+            self.dim_element(mute_element, MUTE_BUTTON_COLOR)
 
     def on_mute_button_push(self, track_index, value):
         """
@@ -193,9 +210,38 @@ class XoneK2(ControlSurface):
         if value == 127:
             track.mute = not track.mute
         if not track.mute:
-            self.light_up_element(mute_element,'red')
+            self.light_up_element(mute_element, MUTE_BUTTON_COLOR)
         else:
-            self.dim_element(mute_element,'red')
+            self.dim_element(mute_element, MUTE_BUTTON_COLOR)
+
+    def on_track_cue_change(self, track_index):
+        """
+        Used to keep cue button led in sync with track cue state.
+
+        track_index: index of track to associate with this listener.
+        """
+        track = self.tracks[track_index]
+        cue_element = self.cue_elements[track_index]
+        if track.solo:
+            self.light_up_element(cue_element, CUE_BUTTON_COLOR)
+        else:
+            self.dim_element(cue_element, CUE_BUTTON_COLOR)
+
+    def on_cue_button_push(self, track_index, value):
+        """
+        Toggles the cue state of the associated track.
+
+        track_index: index of track to associate with this listener.
+        value: MIDI note value (127 = pushed, 0 = depressed)
+        """
+        track = self.tracks[track_index]
+        cue_element = self.cue_elements[track_index]
+        if value == 127:
+            track.solo = not track.solo
+        if track.solo:
+            self.light_up_element(cue_element, CUE_BUTTON_COLOR)
+        else:
+            self.dim_element(cue_element, CUE_BUTTON_COLOR)
 
     def light_up_element(self, element_name, color):
         """
