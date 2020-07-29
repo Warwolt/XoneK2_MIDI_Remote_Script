@@ -54,12 +54,12 @@ class XoneK2(ControlSurface):
 
         with self.component_guard():
             self._set_suppress_rebuild_requests(True)
-            self._c_instance = c_instance
-            self._song = c_instance.song()
-            self._note_to_midi = self._create_note_to_midi_dict()
-            self._element_color_to_midi = self._create_element_color_dict()
-            self._coarse_encoder_is_pushed = False
-            self._fine_encoder_pushed = False
+            self.c_instance = c_instance
+            self.song = c_instance.song()
+            self.note_to_midi = self._create_note_to_midi_dict()
+            self.element_color_to_midi = self._create_element_color_dict()
+            self.coarse_encoder_is_pushed = False
+            self.fine_encoder_pushed = False
             self.dim_all_elements()
 
             # Nudge buttons
@@ -81,53 +81,53 @@ class XoneK2(ControlSurface):
     def on_nudge_back(self, value):
         """ Called when nudge back button pressed. """
         if value == 127:
-            self._song.nudge_down = True
+            self.song.nudge_down = True
             self.light_up_element('layer_button', 'orange')
         else:
-            self._song.nudge_down = False
+            self.song.nudge_down = False
             self.dim_element('layer_button', 'orange')
 
     def on_nudge_up(self, value):
         """ Called when nudge up button pressed. """
         if value == 127:
-            self._song.nudge_up = True
+            self.song.nudge_up = True
             self.light_up_element('exit_setup_button', 'orange')
         else:
-            self._song.nudge_up = False
+            self.song.nudge_up = False
             self.dim_element('exit_setup_button', 'orange')
 
     def on_coarse_tempo_change(self, value):
         """ Called when the coarse tempo encoder is rotated. """
         if value == 1:
-            if self._coarse_encoder_is_pushed:
-                self._song.tempo += 0.1
+            if self.coarse_encoder_is_pushed:
+                self.song.tempo += 0.1
             else:
-                self._song.tempo += 1.0
+                self.song.tempo += 1.0
         else:
-            if self._coarse_encoder_is_pushed:
-                self._song.tempo -= 0.1
+            if self.coarse_encoder_is_pushed:
+                self.song.tempo -= 0.1
             else:
-                self._song.tempo -= 1.0
+                self.song.tempo -= 1.0
 
     def on_coarse_encoder_push(self, value):
         """ Called when the coarse tempo encoder is pushed. """
         if value == 127:
-            self._coarse_encoder_is_pushed = True
+            self.coarse_encoder_is_pushed = True
         else:
-            self._coarse_encoder_is_pushed = False
+            self.coarse_encoder_is_pushed = False
 
     def on_fine_tempo_change(self, value):
         """ Called when the fine tempo encoder is rotated. """
         if value == 1:
             if self._fine_encoder_is_pushed:
-                self._song.tempo += 0.01
+                self.song.tempo += 0.01
             else:
-                self._song.tempo += 0.1
+                self.song.tempo += 0.1
         else:
             if self._fine_encoder_is_pushed:
-                self._song.tempo -= 0.01
+                self.song.tempo -= 0.01
             else:
-                self._song.tempo -= 0.1
+                self.song.tempo -= 0.1
 
     def on_fine_encoder_push(self, value):
         """ Called when the fine tempo encoder is pushed. """
@@ -144,9 +144,9 @@ class XoneK2(ControlSurface):
         color:        a string 'red', 'orange', or 'green'
         """
         status = MIDI_NOTE_ON_STATUS + MIDI_CHANNEL_NUM
-        note = self._element_color_to_midi[element_name][color]
+        note = self.element_color_to_midi[element_name][color]
         velocity = 127
-        self._c_instance.send_midi((status, note, velocity))
+        self.c_instance.send_midi((status, note, velocity))
 
     def dim_element(self, element_name, color='red'):
         """
@@ -156,9 +156,9 @@ class XoneK2(ControlSurface):
         color:        a string 'red', 'orange', or 'green'
         """
         status = MIDI_NOTE_OFF_STATUS + MIDI_CHANNEL_NUM
-        note = self._element_color_to_midi[element_name][color]
+        note = self.element_color_to_midi[element_name][color]
         velocity = 127
-        self._c_instance.send_midi((status, note, velocity))
+        self.c_instance.send_midi((status, note, velocity))
 
     def dim_all_elements(self):
         """
@@ -167,11 +167,11 @@ class XoneK2(ControlSurface):
         The K2 seems to treat the different colors like different layers, the
         only reliable way to dim everything is to loop through all 3 colors.
         """
-        for element, _ in self._element_color_to_midi.iteritems():
+        for element, _ in self.element_color_to_midi.iteritems():
             self.dim_element(element, 'red')
-        for element, _ in self._element_color_to_midi.iteritems():
+        for element, _ in self.element_color_to_midi.iteritems():
             self.dim_element(element, 'orange')
-        for element, _ in self._element_color_to_midi.iteritems():
+        for element, _ in self.element_color_to_midi.iteritems():
             self.dim_element(element, 'green')
 
     def _create_note_to_midi_dict(self):
@@ -196,198 +196,198 @@ class XoneK2(ControlSurface):
             # top encoder row
             #
             'top_encoder_1': {
-                'red': self._note_to_midi['e3'],
-                'orange': self._note_to_midi['e6'],
-                'green': self._note_to_midi['e9'],
+                'red': self.note_to_midi['e3'],
+                'orange': self.note_to_midi['e6'],
+                'green': self.note_to_midi['e9'],
             },
             'top_encoder_2': {
-                'red': self._note_to_midi['f3'],
-                'orange': self._note_to_midi['f6'],
-                'green': self._note_to_midi['f9'],
+                'red': self.note_to_midi['f3'],
+                'orange': self.note_to_midi['f6'],
+                'green': self.note_to_midi['f9'],
             },
             'top_encoder_3': {
-                'red': self._note_to_midi['f#3'],
-                'orange': self._note_to_midi['f#6'],
-                'green': self._note_to_midi['f#9'],
+                'red': self.note_to_midi['f#3'],
+                'orange': self.note_to_midi['f#6'],
+                'green': self.note_to_midi['f#9'],
             },
             'top_encoder_4': {
-                'red': self._note_to_midi['g3'],
-                'orange': self._note_to_midi['g6'],
-                'green': self._note_to_midi['g9'],
+                'red': self.note_to_midi['g3'],
+                'orange': self.note_to_midi['g6'],
+                'green': self.note_to_midi['g9'],
             },
             #
             # first pot switches row
             #
             'pot_switch_1': {
-                'red': self._note_to_midi['c3'],
-                'orange': self._note_to_midi['c6'],
-                'green': self._note_to_midi['c9'],
+                'red': self.note_to_midi['c3'],
+                'orange': self.note_to_midi['c6'],
+                'green': self.note_to_midi['c9'],
             },
             'pot_switch_2': {
-                'red': self._note_to_midi['c#3'],
-                'orange': self._note_to_midi['c#6'],
-                'green': self._note_to_midi['c#9'],
+                'red': self.note_to_midi['c#3'],
+                'orange': self.note_to_midi['c#6'],
+                'green': self.note_to_midi['c#9'],
             },
             'pot_switch_3': {
-                'red': self._note_to_midi['d3'],
-                'orange': self._note_to_midi['d6'],
-                'green': self._note_to_midi['d9'],
+                'red': self.note_to_midi['d3'],
+                'orange': self.note_to_midi['d6'],
+                'green': self.note_to_midi['d9'],
             },
             'pot_switch_4': {
-                'red': self._note_to_midi['d#3'],
-                'orange': self._note_to_midi['d#6'],
-                'green': self._note_to_midi['d#9'],
+                'red': self.note_to_midi['d#3'],
+                'orange': self.note_to_midi['d#6'],
+                'green': self.note_to_midi['d#9'],
             },
             #
             # second pot switches row
             #
             'pot_switch_5': {
-                'red': self._note_to_midi['g#2'],
-                'orange': self._note_to_midi['g#5'],
-                'green': self._note_to_midi['g#8'],
+                'red': self.note_to_midi['g#2'],
+                'orange': self.note_to_midi['g#5'],
+                'green': self.note_to_midi['g#8'],
             },
             'pot_switch_6': {
-                'red': self._note_to_midi['a2'],
-                'orange': self._note_to_midi['a5'],
-                'green': self._note_to_midi['a8'],
+                'red': self.note_to_midi['a2'],
+                'orange': self.note_to_midi['a5'],
+                'green': self.note_to_midi['a8'],
             },
             'pot_switch_7': {
-                'red': self._note_to_midi['a#2'],
-                'orange': self._note_to_midi['a#5'],
-                'green': self._note_to_midi['a#8'],
+                'red': self.note_to_midi['a#2'],
+                'orange': self.note_to_midi['a#5'],
+                'green': self.note_to_midi['a#8'],
             },
             'pot_switch_8': {
-                'red': self._note_to_midi['b2'],
-                'orange': self._note_to_midi['b5'],
-                'green': self._note_to_midi['b8'],
+                'red': self.note_to_midi['b2'],
+                'orange': self.note_to_midi['b5'],
+                'green': self.note_to_midi['b8'],
             },
             #
             # third pot switches row
             #
             'pot_switch_9': {
-                'red': self._note_to_midi['e2'],
-                'orange': self._note_to_midi['e5'],
-                'green': self._note_to_midi['e8'],
+                'red': self.note_to_midi['e2'],
+                'orange': self.note_to_midi['e5'],
+                'green': self.note_to_midi['e8'],
             },
             'pot_switch_10': {
-                'red': self._note_to_midi['f2'],
-                'orange': self._note_to_midi['f5'],
-                'green': self._note_to_midi['f8'],
+                'red': self.note_to_midi['f2'],
+                'orange': self.note_to_midi['f5'],
+                'green': self.note_to_midi['f8'],
             },
             'pot_switch_11': {
-                'red': self._note_to_midi['f#2'],
-                'orange': self._note_to_midi['f#5'],
-                'green': self._note_to_midi['f#8'],
+                'red': self.note_to_midi['f#2'],
+                'orange': self.note_to_midi['f#5'],
+                'green': self.note_to_midi['f#8'],
             },
             'pot_switch_12': {
-                'red': self._note_to_midi['g2'],
-                'orange': self._note_to_midi['g5'],
-                'green': self._note_to_midi['g8'],
+                'red': self.note_to_midi['g2'],
+                'orange': self.note_to_midi['g5'],
+                'green': self.note_to_midi['g8'],
             },
             #
             # first matrix row
             #
             'matrix_button_a': {
-                'red': self._note_to_midi['c2'],
-                'orange': self._note_to_midi['c5'],
-                'green': self._note_to_midi['c8'],
+                'red': self.note_to_midi['c2'],
+                'orange': self.note_to_midi['c5'],
+                'green': self.note_to_midi['c8'],
             },
             'matrix_button_b': {
-                'red': self._note_to_midi['c#2'],
-                'orange': self._note_to_midi['c#5'],
-                'green': self._note_to_midi['c#8'],
+                'red': self.note_to_midi['c#2'],
+                'orange': self.note_to_midi['c#5'],
+                'green': self.note_to_midi['c#8'],
             },
             'matrix_button_c': {
-                'red': self._note_to_midi['d2'],
-                'orange': self._note_to_midi['d5'],
-                'green': self._note_to_midi['d8'],
+                'red': self.note_to_midi['d2'],
+                'orange': self.note_to_midi['d5'],
+                'green': self.note_to_midi['d8'],
             },
             'matrix_button_d': {
-                'red': self._note_to_midi['d#2'],
-                'orange': self._note_to_midi['d#5'],
-                'green': self._note_to_midi['d#8'],
+                'red': self.note_to_midi['d#2'],
+                'orange': self.note_to_midi['d#5'],
+                'green': self.note_to_midi['d#8'],
             },
             #
             # second matrix row
             #
             'matrix_button_e': {
-                'red': self._note_to_midi['g#1'],
-                'orange': self._note_to_midi['g#4'],
-                'green': self._note_to_midi['g#7'],
+                'red': self.note_to_midi['g#1'],
+                'orange': self.note_to_midi['g#4'],
+                'green': self.note_to_midi['g#7'],
             },
             'matrix_button_f': {
-                'red': self._note_to_midi['a1'],
-                'orange': self._note_to_midi['a4'],
-                'green': self._note_to_midi['a7'],
+                'red': self.note_to_midi['a1'],
+                'orange': self.note_to_midi['a4'],
+                'green': self.note_to_midi['a7'],
             },
             'matrix_button_g': {
-                'red': self._note_to_midi['a#1'],
-                'orange': self._note_to_midi['a#4'],
-                'green': self._note_to_midi['a#7'],
+                'red': self.note_to_midi['a#1'],
+                'orange': self.note_to_midi['a#4'],
+                'green': self.note_to_midi['a#7'],
             },
             'matrix_button_h': {
-                'red': self._note_to_midi['b1'],
-                'orange': self._note_to_midi['b4'],
-                'green': self._note_to_midi['b7'],
+                'red': self.note_to_midi['b1'],
+                'orange': self.note_to_midi['b4'],
+                'green': self.note_to_midi['b7'],
             },
             #
             # third matrix row
             #
             'matrix_button_i': {
-                'red': self._note_to_midi['e1'],
-                'orange': self._note_to_midi['e4'],
-                'green': self._note_to_midi['e7'],
+                'red': self.note_to_midi['e1'],
+                'orange': self.note_to_midi['e4'],
+                'green': self.note_to_midi['e7'],
             },
             'matrix_button_j': {
-                'red': self._note_to_midi['f1'],
-                'orange': self._note_to_midi['f4'],
-                'green': self._note_to_midi['f7'],
+                'red': self.note_to_midi['f1'],
+                'orange': self.note_to_midi['f4'],
+                'green': self.note_to_midi['f7'],
             },
             'matrix_button_k': {
-                'red': self._note_to_midi['f#1'],
-                'orange': self._note_to_midi['f#4'],
-                'green': self._note_to_midi['f#7'],
+                'red': self.note_to_midi['f#1'],
+                'orange': self.note_to_midi['f#4'],
+                'green': self.note_to_midi['f#7'],
             },
             'matrix_button_l': {
-                'red': self._note_to_midi['g1'],
-                'orange': self._note_to_midi['g4'],
-                'green': self._note_to_midi['g7'],
+                'red': self.note_to_midi['g1'],
+                'orange': self.note_to_midi['g4'],
+                'green': self.note_to_midi['g7'],
             },
             #
             # fourth matrix row
             #
             'matrix_button_m': {
-                'red': self._note_to_midi['c1'],
-                'orange': self._note_to_midi['c4'],
-                'green': self._note_to_midi['c7'],
+                'red': self.note_to_midi['c1'],
+                'orange': self.note_to_midi['c4'],
+                'green': self.note_to_midi['c7'],
             },
             'matrix_button_n': {
-                'red': self._note_to_midi['c#1'],
-                'orange': self._note_to_midi['c#4'],
-                'green': self._note_to_midi['c#7'],
+                'red': self.note_to_midi['c#1'],
+                'orange': self.note_to_midi['c#4'],
+                'green': self.note_to_midi['c#7'],
             },
             'matrix_button_o': {
-                'red': self._note_to_midi['d1'],
-                'orange': self._note_to_midi['d4'],
-                'green': self._note_to_midi['d7'],
+                'red': self.note_to_midi['d1'],
+                'orange': self.note_to_midi['d4'],
+                'green': self.note_to_midi['d7'],
             },
             'matrix_button_p': {
-                'red': self._note_to_midi['d#1'],
-                'orange': self._note_to_midi['d#4'],
-                'green': self._note_to_midi['d#7'],
+                'red': self.note_to_midi['d#1'],
+                'orange': self.note_to_midi['d#4'],
+                'green': self.note_to_midi['d#7'],
             },
             #
             # bottom row encoder buttons
             #
             'layer_button': {
-                'red': self._note_to_midi['c0'],
-                'orange': self._note_to_midi['e0'],
-                'green': self._note_to_midi['g#0'],
+                'red': self.note_to_midi['c0'],
+                'orange': self.note_to_midi['e0'],
+                'green': self.note_to_midi['g#0'],
             },
             'exit_setup_button': {
-                'red': self._note_to_midi['d#0'],
-                'orange': self._note_to_midi['g0'],
-                'green': self._note_to_midi['b0'],
+                'red': self.note_to_midi['d#0'],
+                'orange': self.note_to_midi['g0'],
+                'green': self.note_to_midi['b0'],
             }
         }
 
