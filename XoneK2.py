@@ -55,18 +55,31 @@ class XoneK2(ControlSurface):
         with self.component_guard():
             self._set_suppress_rebuild_requests(True)
             self._c_instance = c_instance
-            # self._transport = TransportComponent()
             self._song = c_instance.song()
             self._note_to_midi = self._create_note_to_midi_dict()
             self._element_color_to_midi = self._create_element_color_dict()
+            self._coarse_encoder_is_pushed = False
+            self._fine_encoder_pushed = False
             self.dim_all_elements()
 
+            # Nudge buttons
             nudge_up_btn = Button(0x0F)
             nudge_back_btn = Button(0x0C)
             nudge_up_btn.add_value_listener(self.on_nudge_up)
             nudge_back_btn.add_value_listener(self.on_nudge_back)
 
+            # Tempo encoders
+            coarse_tempo_enc = Encoder(0x14)
+            coarse_tempo_push = Button(0x0D)
+            fine_tempo_enc = Encoder(0x15)
+            fine_tempo_pushed = Button(0x0E)
+            coarse_tempo_enc.add_value_listener(self.on_coarse_tempo_change)
+            coarse_tempo_push.add_value_listener(self.on_coarse_encoder_push)
+            fine_tempo_enc.add_value_listener(self.on_fine_tempo_change)
+            fine_tempo_pushed.add_value_listener(self.on_fine_encoder_push)
+
     def on_nudge_back(self, value):
+        """ Called when nudge back button pressed. """
         if value == 127:
             self._song.nudge_down = True
             self.light_up_element('layer_button', 'orange')
@@ -75,12 +88,53 @@ class XoneK2(ControlSurface):
             self.dim_element('layer_button', 'orange')
 
     def on_nudge_up(self, value):
+        """ Called when nudge up button pressed. """
         if value == 127:
             self._song.nudge_up = True
             self.light_up_element('exit_setup_button', 'orange')
         else:
             self._song.nudge_up = False
             self.dim_element('exit_setup_button', 'orange')
+
+    def on_coarse_tempo_change(self, value):
+        """ Called when the coarse tempo encoder is rotated. """
+        if value == 1:
+            if self._coarse_encoder_is_pushed:
+                self._song.tempo += 0.1
+            else:
+                self._song.tempo += 1.0
+        else:
+            if self._coarse_encoder_is_pushed:
+                self._song.tempo -= 0.1
+            else:
+                self._song.tempo -= 1.0
+
+    def on_coarse_encoder_push(self, value):
+        """ Called when the coarse tempo encoder is pushed. """
+        if value == 127:
+            self._coarse_encoder_is_pushed = True
+        else:
+            self._coarse_encoder_is_pushed = False
+
+    def on_fine_tempo_change(self, value):
+        """ Called when the fine tempo encoder is rotated. """
+        if value == 1:
+            if self._fine_encoder_is_pushed:
+                self._song.tempo += 0.01
+            else:
+                self._song.tempo += 0.1
+        else:
+            if self._fine_encoder_is_pushed:
+                self._song.tempo -= 0.01
+            else:
+                self._song.tempo -= 0.1
+
+    def on_fine_encoder_push(self, value):
+        """ Called when the fine tempo encoder is pushed. """
+        if value == 127:
+            self._fine_encoder_is_pushed = True
+        else:
+            self._fine_encoder_is_pushed = False
 
     def light_up_element(self, element_name, color):
         """
