@@ -42,6 +42,7 @@ def Encoder(cc):
     return EncoderElement(MIDI_CC_TYPE, MIDI_CHANNEL_NUM, cc,
         Live.MidiMap.MapMode.absolute)
 
+
 class XoneK2(ControlSurface):
     """
     The top level class of the script that extends the ControlSurface class,
@@ -54,18 +55,32 @@ class XoneK2(ControlSurface):
         with self.component_guard():
             self._set_suppress_rebuild_requests(True)
             self._c_instance = c_instance
+            # self._transport = TransportComponent()
+            self._song = c_instance.song()
             self._note_to_midi = self._create_note_to_midi_dict()
             self._element_color_to_midi = self._create_element_color_dict()
             self.dim_all_elements()
 
-            self.nudge_back_button = Button(0x0C, 'layer')
-            self.nudge_back_button.add_value_listener(self.on_nudge_back)
+            nudge_up_btn = Button(0x0F)
+            nudge_back_btn = Button(0x0C)
+            nudge_up_btn.add_value_listener(self.on_nudge_up)
+            nudge_back_btn.add_value_listener(self.on_nudge_back)
 
     def on_nudge_back(self, value):
         if value == 127:
-            self.light_up_element('layer_button', 'red')
+            self._song.nudge_down = True
+            self.light_up_element('layer_button', 'orange')
         else:
-            self.dim_element('layer_button')
+            self._song.nudge_down = False
+            self.dim_element('layer_button', 'orange')
+
+    def on_nudge_up(self, value):
+        if value == 127:
+            self._song.nudge_up = True
+            self.light_up_element('exit_setup_button', 'orange')
+        else:
+            self._song.nudge_up = False
+            self.dim_element('exit_setup_button', 'orange')
 
     def light_up_element(self, element_name, color):
         """
