@@ -19,10 +19,9 @@ from _Framework.TransportComponent import TransportComponent
 import DebugPrint
 import inspect
 
-# The Xone K2 uses midi channel 15 (zero indexed gives 14)
-MIDI_CHANNEL_NUM = 15 - 1
+MIDI_CHANNEL_NUM = 15 - 1 # The Xone K2 uses midi channel 15
 NUM_TRACKS = 4
-NORMALIZED_ZERO_DB = 0.85000002384185791015625 # the normalised 0 dB value in live
+NORMALIZED_ZERO_DB = 0.85000002384185791015625 # the value Live uses for 0 dB
 MUTE_BUTTON_COLOR = 'red'
 CUE_BUTTON_COLOR = 'orange'
 EQ_KILL_COLOR = 'red'
