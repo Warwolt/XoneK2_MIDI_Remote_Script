@@ -75,6 +75,8 @@ class XoneK2(ControlSurface):
             self.eq3_mid_cut_params = [None] * NUM_TRACKS
             self.eq3_low_cut_params = [None] * NUM_TRACKS
             self.eq3_hi_gain_params = [None] * NUM_TRACKS
+            self.eq3_mid_gain_params = [None] * NUM_TRACKS
+            self.eq3_low_gain_params = [None] * NUM_TRACKS
 
             # Mute data
             self.mute_buttons = [
@@ -110,8 +112,8 @@ class XoneK2(ControlSurface):
                 Fader(0x12), Fader(0x13)]
             # High EQ data
             self.hi_eq_knobs = [
-                Knob(0x04), Knob(0x06),
-                Knob(0x05), Knob(0x07)]
+                Knob(0x04), Knob(0x05),
+                Knob(0x06), Knob(0x07)]
             self.hi_eq_cut_buttons = [
                 Button(0x30), Button(0x31),
                 Button(0x32), Button(0x33)]
@@ -119,6 +121,9 @@ class XoneK2(ControlSurface):
                 'pot_switch_1', 'pot_switch_2',
                 'pot_switch_3', 'pot_switch_4']
             # Mid EQ data
+            self.mid_eq_knobs = [
+                Knob(0x08), Knob(0x09),
+                Knob(0x0A), Knob(0x0B)]
             self.mid_eq_cut_buttons = [
                 Button(0x2C), Button(0x2D),
                 Button(0x2E), Button(0x2F)]
@@ -126,7 +131,7 @@ class XoneK2(ControlSurface):
                 'pot_switch_5', 'pot_switch_6',
                 'pot_switch_7', 'pot_switch_8']
             # Low EQ data
-            self.low_eq_knob = [
+            self.low_eq_knobs = [
                 Knob(0x0C), Knob(0x0D),
                 Knob(0x0E), Knob(0x0F)]
             self.low_eq_cut_buttons = [
@@ -210,8 +215,21 @@ class XoneK2(ControlSurface):
 
             # Initialize high EQ knobs:
             for i in range(NUM_TRACKS):
-                hi_gain_listener = partial(self.on_hi_eq_knob_turn, i)
+                hi_gain_listener = partial(
+                    self.on_eq_knob_turn, self.eq3_hi_gain_params, i)
                 self.hi_eq_knobs[i].add_value_listener(hi_gain_listener)
+
+            # Initialize mid EQ knobs:
+            for i in range(NUM_TRACKS):
+                mid_gain_listener = partial(
+                    self.on_eq_knob_turn, self.eq3_mid_gain_params, i)
+                self.mid_eq_knobs[i].add_value_listener(mid_gain_listener)
+
+            # Initialize low EQ knobs:
+            for i in range(NUM_TRACKS):
+                low_gain_listener = partial(
+                    self.on_eq_knob_turn, self.eq3_low_gain_params, i)
+                self.low_eq_knobs[i].add_value_listener(low_gain_listener)
 
     def on_nudge_back(self, value):
         """ Called when nudge back button pressed. """
@@ -389,6 +407,12 @@ class XoneK2(ControlSurface):
             # find 'hi gain' parameter
             hi_gain_param = get_eq3_parameter(eq3, 'GainHi')
             self.eq3_hi_gain_params[index] = hi_gain_param
+            # find 'mid gain' parameter
+            mid_gain_param = get_eq3_parameter(eq3, 'GainMid')
+            self.eq3_mid_gain_params[index] = mid_gain_param
+            # find 'low gain' parameter
+            low_gain_param = get_eq3_parameter(eq3, 'GainLo')
+            self.eq3_low_gain_params[index] = low_gain_param
         else:
             self.eq3_device_on_params[index] = None
             self.eq3_hi_cut_params[index] = None
@@ -448,26 +472,37 @@ class XoneK2(ControlSurface):
             eq3_low_cut.value = abs(eq3_low_cut.value - 1.0)
         self.draw_low_eq_cut(index)
 
-    def on_hi_eq_knob_turn(self, index, value):
+    def on_eq_knob_turn(self, gain_params, index, value):
         """
-        Change the gain of the high EQ of the associated track.
+        Change the gain of the EQ band of the associated track.
 
         The knob is mapped to give 0 dB at 12 o'clock, 6 dB at full twist right
         and -inf dB at full twist left.
 
+        gain_params: list containing 'EQ Three' Device.Device instances
         index: index of track to associate with this listener
         value: MIDI control change value, 0-127
         """
-        eq3_high_gain = self.eq3_hi_gain_params[index]
-        normalized_knob_value = (value + 1.0) / 128.0
-        new_knob_value = normalized_knob_value * NORMALIZED_ZERO_DB
-        if normalized_knob_value <= 0.5:
-            DebugPrint.log_message("less then")
-        if normalized_knob_value > 0.5:
-            DebugPrint.log_message("greater then")
-        if eq3_high_gain is not None:
-            DebugPrint.log_message(str(normalized_knob_value))
-            eq3_high_gain.value = new_knob_value
+        gain_param = gain_params[index]
+        if gain_param is not None:
+            normalized_knob_value = (value + 1.0) / 128.0
+            dead_zone_x_range = 0.1
+            lower_x_range = 0.5 - dead_zone_x_range / 2
+            lower_y_max = NORMALIZED_ZERO_DB
+            upper_x_range = 0.5 + dead_zone_x_range / 2
+            upper_y_range = 1.0 - lower_y_max
+            upper_y_max = 1.0
+            if normalized_knob_value <= lower_x_range:
+                scaled_knob_value = normalized_knob_value / lower_x_range
+                new_gain_value = scaled_knob_value * lower_y_max
+            elif normalized_knob_value <= (lower_x_range + dead_zone_x_range):
+                new_gain_value = NORMALIZED_ZERO_DB
+            else:
+                shifted_knob_value = normalized_knob_value - lower_x_range
+                scaled_knob_value = shifted_knob_value / upper_x_range
+                upper_y_value = scaled_knob_value * upper_y_range
+                new_gain_value = lower_y_max + upper_y_value
+            gain_param.value = new_gain_value
 
     def draw_mute_button(self, index):
         """
