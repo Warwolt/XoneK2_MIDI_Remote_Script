@@ -130,13 +130,10 @@ class XoneK2(ControlSurface):
                 track.add_devices_listener(dev_change_listener)
                 self.update_devices_bindings(i) # look for any existing devies
 
-            # EQ kill buttons
+            # Initialize EQ kill buttons:
             for i in range(NUM_TRACKS):
-                device_on_param = self.eq3_device_on_params[i]
-                if device_on_param is None:
-                    continue
-                on_eq_kill_listener = partial(self.on_eq_kill_button_push, i)
-                self.eq_kill_buttons[i].add_value_listener(on_eq_kill_listener)
+                push_listener = partial(self.on_eq_kill_button_push, i)
+                self.eq_kill_buttons[i].add_value_listener(push_listener)
 
     def on_nudge_back(self, value):
         """ Called when nudge back button pressed. """
@@ -214,15 +211,15 @@ class XoneK2(ControlSurface):
         else:
             self._fine_encoder_is_pushed = False
 
-    def on_mute_button_push(self, track_index, value):
+    def on_mute_button_push(self, index, value):
         """
         Toggles the muted state of the associated track.
 
-        track_index: index of track to associate with this listener.
+        index: index of track to associate with this listener.
         value: MIDI note value (127 = pushed, 0 = depressed)
         """
-        track = self.tracks[track_index]
-        mute_element = self.mute_elements[track_index]
+        track = self.tracks[index]
+        mute_element = self.mute_elements[index]
         if value == 127:
             track.mute = not track.mute
         if not track.mute:
@@ -230,88 +227,92 @@ class XoneK2(ControlSurface):
         else:
             self.dim_element(mute_element, MUTE_BUTTON_COLOR)
 
-    def on_cue_button_push(self, track_index, value):
+    def on_cue_button_push(self, index, value):
         """
         Toggles the cue state of the associated track.
 
-        track_index: index of track to associate with this listener
+        index: index of track to associate with this listener
         value: MIDI note value (127 = pushed, 0 = depressed)
         """
-        track = self.tracks[track_index]
+        track = self.tracks[index]
         if value == 127:
             track.solo = not track.solo
-        self.draw_cue_button(track_index)
+        self.draw_cue_button(index)
 
-    def update_devices_bindings(self, track_index):
+    def update_devices_bindings(self, index):
         """
         Called whenever a device is added or removed from associated track.
 
         This listener is used to make sure that this script is kept in sync
         with the available EQ3 devices in the Live session.
 
-        track_index: index of track to associate with this listener
+        index: index of track to associate with this listener
         """
         # Find devices and parameters
-        track = self.tracks[track_index]
+        track = self.tracks[index]
         eq3 = find_eq3_device(track)
-        self.eq3_devices[track_index] = eq3
+        self.eq3_devices[index] = eq3
         if eq3 is not None:
+            # find 'device on' parameter
             device_on_param = get_eq3_device_on_parameter(eq3)
-            self.eq3_device_on_params[track_index] = device_on_param
+            self.eq3_device_on_params[index] = device_on_param
+            # add parameter change listener
+            if device_on_param is not None:
+                device_on_listener = partial(self.draw_eq_kill, index)
+                device_on_param.add_value_listener(device_on_listener)
         else:
-            self.eq3_device_on_params[track_index] = None
+            self.eq3_device_on_params[index] = None
         # Update views
-        self.draw_eq_kill(track_index)
+        self.draw_eq_kill(index)
 
 
-    def on_eq_kill_button_push(self, track_index, value):
+    def on_eq_kill_button_push(self, index, value):
         """
         Toggle the 'EQ Three' on-state to create a EQ kill functionality.
 
-        track_index: index of track to associate with this listener
+        index: index of track to associate with this listener
         value: MIDI note value (127 = pushed, 0 = depressed)
         """
-        eq3_device_on = self.eq3_device_on_params[track_index]
-        if value == 127:
-            eq3_device_on.value = abs(eq3_device_on.value - 1.0)
-        self.draw_eq_kill(track_index)
+        eq3_device_on = self.eq3_device_on_params[index]
+        if eq3_device_on is not None:
+            if value == 127:
+                eq3_device_on.value = abs(eq3_device_on.value - 1.0)
+            self.draw_eq_kill(index)
 
-    def draw_mute_button(self, track_index):
+    def draw_mute_button(self, index):
         """
         Light up or dim the mute button based on its state.
 
-        track_index: index of track associated with the mute button
+        index: index of track associated with the mute button
         """
-        track = self.tracks[track_index]
-        mute_element = self.mute_elements[track_index]
+        track = self.tracks[index]
+        mute_element = self.mute_elements[index]
         if not track.mute:
             self.light_up_element(mute_element, MUTE_BUTTON_COLOR)
         else:
             self.dim_element(mute_element, MUTE_BUTTON_COLOR)
 
-    def draw_cue_button(self, track_index):
+    def draw_cue_button(self, index):
         """
         Light up or dim the cue button based on its state.
 
-        track_index: index of track associated with the cue button
+        index: index of track associated with the cue button
         """
-        track = self.tracks[track_index]
-        cue_element = self.cue_elements[track_index]
+        track = self.tracks[index]
+        cue_element = self.cue_elements[index]
         if track.solo:
             self.light_up_element(cue_element, CUE_BUTTON_COLOR)
         else:
             self.dim_element(cue_element, CUE_BUTTON_COLOR)
 
-    def draw_eq_kill(self, track_index):
+    def draw_eq_kill(self, index):
         """
         Light up or dim the EQ kill button based on its state.
 
-        track_index: index of track associated with the eq kill button
+        index: index of track associated with the eq kill button
         """
-        DebugPrint.log_message("draw_eq_kill")
-        eq_kill_element = self.eq_kill_elements[track_index]
-        device_on_param = self.eq3_device_on_params[track_index]
-        DebugPrint.log_message(str(type(device_on_param)))
+        eq_kill_element = self.eq_kill_elements[index]
+        device_on_param = self.eq3_device_on_params[index]
         if device_on_param is None:
             self.dim_element(eq_kill_element, EQ_KILL_COLOR)
         elif device_on_param.value == 1.0:
