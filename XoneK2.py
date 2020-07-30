@@ -97,36 +97,37 @@ class XoneK2(ControlSurface):
                         self.mute_elements[i], MUTE_BUTTON_COLOR)
 
             # Cue buttons
-            self.cue_elements = ['matrix_button_a', 'matrix_button_b',
+            self.cue_elements = [
+                'matrix_button_a', 'matrix_button_b',
                 'matrix_button_c', 'matrix_button_d']
-            cue_buttons = [Button(0x24), Button(0x25),
+            cue_buttons = [
+                Button(0x24), Button(0x25),
                 Button(0x26), Button(0x27)]
             for i in range(4):
                 track = self.tracks[i]
-                track.add_solo_listener(partial(self.on_track_cue_change, i))
-                cue_buttons[i].add_value_listener(
-                    partial(self.on_cue_button_push, i))
-                if track.solo:
-                    self.light_up_element(
-                        self.cue_elements[i], CUE_BUTTON_COLOR)
+                on_cue_change_listener = partial(self.draw_cue_button, i)
+                track.add_solo_listener(on_cue_change_listener)
+                on_cue_button_listener = partial(self.on_cue_button_push, i)
+                cue_buttons[i].add_value_listener(on_cue_button_listener)
+                self.draw_cue_button(i)
 
             # EQ kill buttons
-            self.eq_kill_elements = ['matrix_button_e', 'matrix_button_f',
+            self.eq_kill_elements = [
+                'matrix_button_e', 'matrix_button_f',
                 'matrix_button_g', 'matrix_button_h']
-            self.eq3_device_on_params = []
-            eq_kill_buttons = [Button(0x20), Button(0x21),
+            eq_kill_buttons = [
+                Button(0x20), Button(0x21),
                 Button(0x22), Button(0x23)]
+            self.eq3_device_on_params = []
             for i in range(4):
                 eq3 = find_eq3_device(self.tracks[i])
                 if eq3 is None:
                     continue
-                self.eq3_device_on_params.append(
-                    get_eq3_device_on_parameter(eq3))
-                eq_kill_buttons[i].add_value_listener(
-                    partial(self.on_eq_kill_button_push, i))
-                if self.eq3_device_on_params[i].value == 1.0:
-                    self.light_up_element(
-                        self.eq_kill_elements[i], EQ_KILL_COLOR)
+                device_on_param = get_eq3_device_on_parameter(eq3)
+                self.eq3_device_on_params.append(device_on_param)
+                on_eq_kill_listener = partial(self.on_eq_kill_button_push, i)
+                eq_kill_buttons[i].add_value_listener(on_eq_kill_listener)
+                self.draw_eq_kill(i)
 
     def on_nudge_back(self, value):
         """ Called when nudge back button pressed. """
@@ -233,19 +234,6 @@ class XoneK2(ControlSurface):
         else:
             self.dim_element(mute_element, MUTE_BUTTON_COLOR)
 
-    def on_track_cue_change(self, track_index):
-        """
-        Used to keep cue button led in sync with track cue state.
-
-        track_index: index of track to associate with this listener
-        """
-        track = self.tracks[track_index]
-        cue_element = self.cue_elements[track_index]
-        if track.solo:
-            self.light_up_element(cue_element, CUE_BUTTON_COLOR)
-        else:
-            self.dim_element(cue_element, CUE_BUTTON_COLOR)
-
     def on_cue_button_push(self, track_index, value):
         """
         Toggles the cue state of the associated track.
@@ -254,13 +242,9 @@ class XoneK2(ControlSurface):
         value: MIDI note value (127 = pushed, 0 = depressed)
         """
         track = self.tracks[track_index]
-        cue_element = self.cue_elements[track_index]
         if value == 127:
             track.solo = not track.solo
-        if track.solo:
-            self.light_up_element(cue_element, CUE_BUTTON_COLOR)
-        else:
-            self.dim_element(cue_element, CUE_BUTTON_COLOR)
+        self.draw_cue_button(track_index)
 
     def on_eq_kill_button_push(self, track_index, value):
         """
@@ -270,10 +254,29 @@ class XoneK2(ControlSurface):
         value: MIDI note value (127 = pushed, 0 = depressed)
         """
         eq3_device_on = self.eq3_device_on_params[track_index]
-        eq_kill_element = self.eq_kill_elements[track_index]
         if value == 127:
             eq3_device_on.value = abs(eq3_device_on.value - 1.0)
-        if eq3_device_on.value == 1.0:
+        self.draw_eq_kill(track_index)
+
+    def draw_cue_button(self, track_index):
+        """
+        Light up or dim the cue button based on its state.
+        track_index: index of track associated with the cue button
+        """
+        track = self.tracks[track_index]
+        cue_element = self.cue_elements[track_index]
+        if track.solo:
+            self.light_up_element(cue_element, CUE_BUTTON_COLOR)
+        else:
+            self.dim_element(cue_element, CUE_BUTTON_COLOR)
+
+    def draw_eq_kill(self, track_index):
+        """
+        Light up or dim the EQ kill button based on its state.
+        track_index: index of track associated with the eq kill button
+        """
+        eq_kill_element = self.eq_kill_elements[track_index]
+        if self.eq3_device_on_params[track_index].value == 1.0:
             self.light_up_element(eq_kill_element, EQ_KILL_COLOR)
         else:
             self.dim_element(eq_kill_element, EQ_KILL_COLOR)
