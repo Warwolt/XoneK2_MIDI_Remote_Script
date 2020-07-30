@@ -23,6 +23,7 @@ import inspect
 MIDI_CHANNEL_NUM = 15 - 1
 MUTE_BUTTON_COLOR = 'red'
 CUE_BUTTON_COLOR = 'orange'
+EQ_KILL_COLOR = 'red'
 
 def Button(note_num, name=None):
     button = ButtonElement(True, MIDI_NOTE_TYPE, MIDI_CHANNEL_NUM, note_num)
@@ -109,6 +110,24 @@ class XoneK2(ControlSurface):
                     self.light_up_element(
                         self.cue_elements[i], CUE_BUTTON_COLOR)
 
+            # EQ kill buttons
+            self.eq_kill_elements = ['matrix_button_e', 'matrix_button_f',
+                'matrix_button_g', 'matrix_button_h']
+            self.eq3_device_on_params = []
+            eq_kill_buttons = [Button(0x20), Button(0x21),
+                Button(0x22), Button(0x23)]
+            for i in range(4):
+                eq3 = find_eq3_device(self.tracks[i])
+                if eq3 is None:
+                    continue
+                self.eq3_device_on_params.append(
+                    get_eq3_device_on_parameter(eq3))
+                eq_kill_buttons[i].add_value_listener(
+                    partial(self.on_eq_kill_button_push, i))
+                if self.eq3_device_on_params[i].value == 1.0:
+                    self.light_up_element(
+                        self.eq_kill_elements[i], EQ_KILL_COLOR)
+
     def on_nudge_back(self, value):
         """ Called when nudge back button pressed. """
         if value == 127:
@@ -189,7 +208,7 @@ class XoneK2(ControlSurface):
         """
         Used to keep mute button led in sync with track muted state.
 
-        track_index: index of track to associate with this listener.
+        track_index: index of track to associate with this listener
         """
         track = self.tracks[track_index]
         mute_element = self.mute_elements[track_index]
@@ -218,7 +237,7 @@ class XoneK2(ControlSurface):
         """
         Used to keep cue button led in sync with track cue state.
 
-        track_index: index of track to associate with this listener.
+        track_index: index of track to associate with this listener
         """
         track = self.tracks[track_index]
         cue_element = self.cue_elements[track_index]
@@ -231,7 +250,7 @@ class XoneK2(ControlSurface):
         """
         Toggles the cue state of the associated track.
 
-        track_index: index of track to associate with this listener.
+        track_index: index of track to associate with this listener
         value: MIDI note value (127 = pushed, 0 = depressed)
         """
         track = self.tracks[track_index]
@@ -242,6 +261,22 @@ class XoneK2(ControlSurface):
             self.light_up_element(cue_element, CUE_BUTTON_COLOR)
         else:
             self.dim_element(cue_element, CUE_BUTTON_COLOR)
+
+    def on_eq_kill_button_push(self, track_index, value):
+        """
+        Toggle the 'EQ Three' on-state to create a EQ kill functionality.
+
+        track_index: index of track to associate with this listener
+        value: MIDI note value (127 = pushed, 0 = depressed)
+        """
+        eq3_device_on = self.eq3_device_on_params[track_index]
+        eq_kill_element = self.eq_kill_elements[track_index]
+        if value == 127:
+            eq3_device_on.value = abs(eq3_device_on.value - 1.0)
+        if eq3_device_on.value == 1.0:
+            self.light_up_element(eq_kill_element, EQ_KILL_COLOR)
+        else:
+            self.dim_element(eq_kill_element, EQ_KILL_COLOR)
 
     def light_up_element(self, element_name, color):
         """
@@ -497,3 +532,19 @@ class XoneK2(ControlSurface):
                 'green': self.note_to_midi['b0'],
             }
         }
+
+
+def find_eq3_device(track):
+    """
+    Tries to find the first 'EQ Three' device on the track and returns it if
+    it's found.
+
+    track: Track.Track instance to inspect
+    """
+    eq3 = filter(lambda device: device.name == 'EQ Three', track.devices)
+    return eq3[0] if len(eq3) > 0 else None
+
+def get_eq3_device_on_parameter(eq3):
+    """ """
+    device_on = filter(lambda param: param.name == 'Device On', eq3.parameters)
+    return device_on[0] if len(device_on) > 0 else None
