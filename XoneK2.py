@@ -197,19 +197,22 @@ class XoneK2(ControlSurface):
 
             # Initialize high EQ buttons:
             for i in range(NUM_TRACKS):
-                hi_cut_listener = partial(self.on_hi_eq_cut_button_push, i)
+                hi_cut_listener = partial(self.on_eq_cut_button_push,
+                    self.eq3_hi_cut_params, self.draw_hi_eq_cut, i)
                 self.hi_eq_cut_buttons[i].add_value_listener(hi_cut_listener)
                 self.draw_mid_eq_cut(i)
 
             # Initialize mid EQ buttons:
             for i in range(NUM_TRACKS):
-                mid_cut_listener = partial(self.on_mid_eq_cut_button_push, i)
+                mid_cut_listener = partial(self.on_eq_cut_button_push,
+                    self.eq3_mid_cut_params, self.draw_mid_eq_cut, i)
                 self.mid_eq_cut_buttons[i].add_value_listener(mid_cut_listener)
                 self.draw_mid_eq_cut(i)
 
             # Initialize low EQ buttons:
             for i in range(NUM_TRACKS):
-                low_cut_listener = partial(self.on_low_eq_cut_button_push, i)
+                low_cut_listener = partial(self.on_eq_cut_button_push,
+                    self.eq3_low_cut_params, self.draw_low_eq_cut, i)
                 self.low_eq_cut_buttons[i].add_value_listener(low_cut_listener)
                 self.draw_low_eq_cut(i)
 
@@ -436,41 +439,19 @@ class XoneK2(ControlSurface):
             eq3_device_on.value = abs(eq3_device_on.value - 1.0)
         self.draw_eq_kill(index)
 
-    def on_hi_eq_cut_button_push(self, index, value):
+    def on_eq_cut_button_push(self, eq3_cut_params, draw_button, index, value):
         """
-        Kill the high EQ3 band of the associated track.
+        Kill an EQ3 band of the associated track.
 
+        eq3_cut_params: list of 'EQ Three' DeviceParameter instances
+        draw_button: function for drawing the button
         index: index of track to associate with this listener
         value: MIDI note value (127 = pushed, 0 = depressed)
         """
-        eq3_hi_cut = self.eq3_hi_cut_params[index]
-        if eq3_hi_cut is not None and value == 127:
-            eq3_hi_cut.value = abs(eq3_hi_cut.value - 1.0)
-        self.draw_mid_eq_cut(index)
-
-    def on_mid_eq_cut_button_push(self, index, value):
-        """
-        Kill the mid EQ3 band of the associated track.
-
-        index: index of track to associate with this listener
-        value: MIDI note value (127 = pushed, 0 = depressed)
-        """
-        eq3_mid_cut = self.eq3_mid_cut_params[index]
-        if eq3_mid_cut is not None and value == 127:
-            eq3_mid_cut.value = abs(eq3_mid_cut.value - 1.0)
-        self.draw_mid_eq_cut(index)
-
-    def on_low_eq_cut_button_push(self, index, value):
-        """
-        Kill the low EQ3 band of the associated track.
-
-        index: index of track to associate with this listener
-        value: MIDI note value (127 = pushed, 0 = depressed)
-        """
-        eq3_low_cut = self.eq3_low_cut_params[index]
-        if eq3_low_cut is not None and value == 127:
-            eq3_low_cut.value = abs(eq3_low_cut.value - 1.0)
-        self.draw_low_eq_cut(index)
+        eq3_cut_param = eq3_cut_params[index]
+        if eq3_cut_param is not None and value == 127:
+            eq3_cut_param.value = abs(eq3_cut_param.value - 1.0)
+        draw_button(index)
 
     def on_eq_knob_turn(self, gain_params, index, value):
         """
@@ -492,11 +473,14 @@ class XoneK2(ControlSurface):
             upper_x_range = 0.5 + dead_zone_x_range / 2
             upper_y_range = 1.0 - lower_y_max
             upper_y_max = 1.0
+            # Left twist, -inf dB to 0 dB
             if normalized_knob_value <= lower_x_range:
                 scaled_knob_value = normalized_knob_value / lower_x_range
                 new_gain_value = scaled_knob_value * lower_y_max
+            # Dead zone 0 dB
             elif normalized_knob_value <= (lower_x_range + dead_zone_x_range):
                 new_gain_value = NORMALIZED_ZERO_DB
+            # Right twist, 0 dB to 6 dB
             else:
                 shifted_knob_value = normalized_knob_value - lower_x_range
                 scaled_knob_value = shifted_knob_value / upper_x_range
