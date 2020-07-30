@@ -98,6 +98,10 @@ class XoneK2(ControlSurface):
             self.track_stop_elements = [
                 'matrix_button_m', 'matrix_button_n',
                 'matrix_button_o', 'matrix_button_p']
+            # Volume fader data
+            self.volume_faders = [
+                Fader(0x10), Fader(0x11),
+                Fader(0x12), Fader(0x13)]
 
             # Find EQ devices and update bindings
             for i in range(NUM_TRACKS):
@@ -147,6 +151,11 @@ class XoneK2(ControlSurface):
             for i in range(NUM_TRACKS):
                 stop_listener = partial(self.on_track_stop_button_push, i)
                 self.track_stop_buttons[i].add_value_listener(stop_listener)
+
+            # Initialize volume faders:
+            for i in range(NUM_TRACKS):
+                fader_move_listener = partial(self.on_volume_fader_move, i)
+                self.volume_faders[i].add_value_listener(fader_move_listener)
 
     def on_nudge_back(self, value):
         """ Called when nudge back button pressed. """
@@ -267,6 +276,22 @@ class XoneK2(ControlSurface):
         else:
             self.dim_element(stop_element, 'red')
 
+    def on_volume_fader_move(self, index, value):
+        """
+        Sets the associated track volume according to the fader position.
+
+        The fader maps the range [0, 127] to the range [-inf dBm, 0 dB], by
+        scaling the normalized fader MIDI value by the zero db value.
+        Note that Live uses tha value 1.0 as 6 dB and 0.85 for 0 dB.
+
+        index: index of track to associate with this listener
+        value: MIDI control change value, 0-127
+        """
+        track = self.tracks[index]
+        zero_db_value = 0.85000002384185791015625
+        normalized_fader_value = (value + 1.0) / 128.0
+        new_volume = normalized_fader_value * zero_db_value
+        track.mixer_device.volume.value = new_volume
 
     def update_devices_bindings(self, index):
         """
