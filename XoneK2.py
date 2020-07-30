@@ -67,6 +67,29 @@ class XoneK2(ControlSurface):
             self.coarse_encoder_is_pushed = False
             self.fine_encoder_pushed = False
             self.dim_all_elements()
+            self.eq3_devices = [None] * NUM_TRACKS
+            self.eq3_device_on_params = [None] * NUM_TRACKS
+            # Mute data
+            self.mute_buttons = [
+                Button(0x1C), Button(0x1D),
+                Button(0x1E), Button(0x1F)]
+            self.mute_elements = [
+                'matrix_button_i', 'matrix_button_j',
+                'matrix_button_k', 'matrix_button_l']
+            # Cue data
+            self.cue_buttons = [
+                Button(0x24), Button(0x25),
+                Button(0x26), Button(0x27)]
+            self.cue_elements = [
+                'matrix_button_a', 'matrix_button_b',
+                'matrix_button_c', 'matrix_button_d']
+            # EQ kill data
+            self.eq_kill_buttons = [
+                Button(0x20), Button(0x21),
+                Button(0x22), Button(0x23)]
+            self.eq_kill_elements = [
+                'matrix_button_e', 'matrix_button_f',
+                'matrix_button_g', 'matrix_button_h']
 
             # Nudge buttons
             nudge_up_btn = Button(0x0F)
@@ -84,51 +107,36 @@ class XoneK2(ControlSurface):
             fine_tempo_enc.add_value_listener(self.on_fine_tempo_change)
             fine_tempo_pushed.add_value_listener(self.on_fine_encoder_push)
 
-            # Mute buttons
-            self.mute_elements = [
-                'matrix_button_i', 'matrix_button_j',
-                'matrix_button_k', 'matrix_button_l']
-            mute_buttons = [
-                Button(0x1C), Button(0x1D),
-                Button(0x1E), Button(0x1F)]
+            # Initialize mute buttons
             for i in range(NUM_TRACKS):
                 on_mute_change_listener = partial(self.draw_mute_button, i)
                 self.tracks[i].add_mute_listener(on_mute_change_listener)
                 on_mute_button_listener = partial(self.on_mute_button_push, i)
-                mute_buttons[i].add_value_listener(on_mute_button_listener)
+                self.mute_buttons[i].add_value_listener(on_mute_button_listener)
                 self.draw_mute_button(i)
 
-            # Cue buttons
-            self.cue_elements = [
-                'matrix_button_a', 'matrix_button_b',
-                'matrix_button_c', 'matrix_button_d']
-            cue_buttons = [
-                Button(0x24), Button(0x25),
-                Button(0x26), Button(0x27)]
+            # Initialize cue buttons
             for i in range(NUM_TRACKS):
                 on_cue_change_listener = partial(self.draw_cue_button, i)
                 self.tracks[i].add_solo_listener(on_cue_change_listener)
                 on_cue_button_listener = partial(self.on_cue_button_push, i)
-                cue_buttons[i].add_value_listener(on_cue_button_listener)
+                self.cue_buttons[i].add_value_listener(on_cue_button_listener)
                 self.draw_cue_button(i)
 
-            # EQ kill buttons
-            self.eq_kill_elements = [
-                'matrix_button_e', 'matrix_button_f',
-                'matrix_button_g', 'matrix_button_h']
-            eq_kill_buttons = [
-                Button(0x20), Button(0x21),
-                Button(0x22), Button(0x23)]
-            self.eq3_device_on_params = []
+            # Find EQ devices and update bindings
             for i in range(NUM_TRACKS):
-                eq3 = find_eq3_device(self.tracks[i])
-                if eq3 is None:
+                track = self.tracks[i]
+                dev_change_listener = partial(self.update_devices_bindings, i)
+                track.add_devices_listener(dev_change_listener)
+                self.update_devices_bindings(i) # look for any existing devies
+
+            # EQ kill buttons
+            for i in range(NUM_TRACKS):
+                device_on_param = self.eq3_device_on_params[i]
+                if device_on_param is None:
                     continue
-                device_on_param = get_eq3_device_on_parameter(eq3)
-                self.eq3_device_on_params.append(device_on_param)
                 on_eq_kill_listener = partial(self.on_eq_kill_button_push, i)
-                eq_kill_buttons[i].add_value_listener(on_eq_kill_listener)
-                self.draw_eq_kill(i)
+                self.eq_kill_buttons[i].add_value_listener(on_eq_kill_listener)
 
     def on_nudge_back(self, value):
         """ Called when nudge back button pressed. """
@@ -234,6 +242,28 @@ class XoneK2(ControlSurface):
             track.solo = not track.solo
         self.draw_cue_button(track_index)
 
+    def update_devices_bindings(self, track_index):
+        """
+        Called whenever a device is added or removed from associated track.
+
+        This listener is used to make sure that this script is kept in sync
+        with the available EQ3 devices in the Live session.
+
+        track_index: index of track to associate with this listener
+        """
+        # Find devices and parameters
+        track = self.tracks[track_index]
+        eq3 = find_eq3_device(track)
+        self.eq3_devices[track_index] = eq3
+        if eq3 is not None:
+            device_on_param = get_eq3_device_on_parameter(eq3)
+            self.eq3_device_on_params[track_index] = device_on_param
+        else:
+            self.eq3_device_on_params[track_index] = None
+        # Update views
+        self.draw_eq_kill(track_index)
+
+
     def on_eq_kill_button_push(self, track_index, value):
         """
         Toggle the 'EQ Three' on-state to create a EQ kill functionality.
@@ -278,8 +308,13 @@ class XoneK2(ControlSurface):
 
         track_index: index of track associated with the eq kill button
         """
+        DebugPrint.log_message("draw_eq_kill")
         eq_kill_element = self.eq_kill_elements[track_index]
-        if self.eq3_device_on_params[track_index].value == 1.0:
+        device_on_param = self.eq3_device_on_params[track_index]
+        DebugPrint.log_message(str(type(device_on_param)))
+        if device_on_param is None:
+            self.dim_element(eq_kill_element, EQ_KILL_COLOR)
+        elif device_on_param.value == 1.0:
             self.light_up_element(eq_kill_element, EQ_KILL_COLOR)
         else:
             self.dim_element(eq_kill_element, EQ_KILL_COLOR)
