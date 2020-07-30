@@ -66,9 +66,11 @@ class XoneK2(ControlSurface):
             self.note_to_midi = self._create_note_to_midi_dict()
             self.element_color_to_midi = self._create_element_color_dict()
 
-            self.dim_all_elements()
             self.setup_data_structures()
             self.initialize_controller_components()
+
+    def disconnect(self):
+        self.dim_all_elements()
 
     def setup_data_structures(self):
         self.coarse_encoder_is_pushed = False
