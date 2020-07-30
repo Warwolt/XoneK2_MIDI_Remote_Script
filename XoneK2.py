@@ -22,6 +22,7 @@ import inspect
 # The Xone K2 uses midi channel 15 (zero indexed gives 14)
 MIDI_CHANNEL_NUM = 15 - 1
 NUM_TRACKS = 4
+NORMALIZED_ZERO_DB = 0.85000002384185791015625 # the normalised 0 dB value in live
 MUTE_BUTTON_COLOR = 'red'
 CUE_BUTTON_COLOR = 'orange'
 EQ_KILL_COLOR = 'red'
@@ -70,9 +71,10 @@ class XoneK2(ControlSurface):
             self.dim_all_elements()
             self.eq3_devices = [None] * NUM_TRACKS
             self.eq3_device_on_params = [None] * NUM_TRACKS
-            self.eq3_low_cut_params = [None] * NUM_TRACKS
-            self.eq3_mid_cut_params = [None] * NUM_TRACKS
             self.eq3_hi_cut_params = [None] * NUM_TRACKS
+            self.eq3_mid_cut_params = [None] * NUM_TRACKS
+            self.eq3_low_cut_params = [None] * NUM_TRACKS
+            self.eq3_hi_gain_params = [None] * NUM_TRACKS
 
             # Mute data
             self.mute_buttons = [
@@ -106,27 +108,33 @@ class XoneK2(ControlSurface):
             self.volume_faders = [
                 Fader(0x10), Fader(0x11),
                 Fader(0x12), Fader(0x13)]
-            # Low EQ cut data
-            self.low_eq_cut_buttons = [
-                Button(0x28), Button(0x29),
-                Button(0x2A), Button(0x2B)]
-            self.low_eq_cut_elements = [
-                'pot_switch_9', 'pot_switch_10',
-                'pot_switch_11', 'pot_switch_12']
-            # Mid EQ cut data
-            self.mid_eq_cut_buttons = [
-                Button(0x2C), Button(0x2D),
-                Button(0x2E), Button(0x2F)]
-            self.mid_eq_cut_elements = [
-                'pot_switch_5', 'pot_switch_6',
-                'pot_switch_7', 'pot_switch_8']
-            # High EQ cut data
+            # High EQ data
+            self.hi_eq_knobs = [
+                Knob(0x04), Knob(0x06),
+                Knob(0x05), Knob(0x07)]
             self.hi_eq_cut_buttons = [
                 Button(0x30), Button(0x31),
                 Button(0x32), Button(0x33)]
             self.hi_eq_cut_elements = [
                 'pot_switch_1', 'pot_switch_2',
                 'pot_switch_3', 'pot_switch_4']
+            # Mid EQ data
+            self.mid_eq_cut_buttons = [
+                Button(0x2C), Button(0x2D),
+                Button(0x2E), Button(0x2F)]
+            self.mid_eq_cut_elements = [
+                'pot_switch_5', 'pot_switch_6',
+                'pot_switch_7', 'pot_switch_8']
+            # Low EQ data
+            self.low_eq_knob = [
+                Knob(0x0C), Knob(0x0D),
+                Knob(0x0E), Knob(0x0F)]
+            self.low_eq_cut_buttons = [
+                Button(0x28), Button(0x29),
+                Button(0x2A), Button(0x2B)]
+            self.low_eq_cut_elements = [
+                'pot_switch_9', 'pot_switch_10',
+                'pot_switch_11', 'pot_switch_12']
 
             # Find EQ devices and update bindings
             for i in range(NUM_TRACKS):
@@ -182,11 +190,11 @@ class XoneK2(ControlSurface):
                 fader_move_listener = partial(self.on_volume_fader_move, i)
                 self.volume_faders[i].add_value_listener(fader_move_listener)
 
-            # Initialize low EQ buttons:
+            # Initialize high EQ buttons:
             for i in range(NUM_TRACKS):
-                low_cut_listener = partial(self.on_low_eq_cut_button_push, i)
-                self.low_eq_cut_buttons[i].add_value_listener(low_cut_listener)
-                self.draw_low_eq_cut(i)
+                hi_cut_listener = partial(self.on_hi_eq_cut_button_push, i)
+                self.hi_eq_cut_buttons[i].add_value_listener(hi_cut_listener)
+                self.draw_mid_eq_cut(i)
 
             # Initialize mid EQ buttons:
             for i in range(NUM_TRACKS):
@@ -194,12 +202,16 @@ class XoneK2(ControlSurface):
                 self.mid_eq_cut_buttons[i].add_value_listener(mid_cut_listener)
                 self.draw_mid_eq_cut(i)
 
-            # Initialize high EQ buttons:
+            # Initialize low EQ buttons:
             for i in range(NUM_TRACKS):
-                hi_cut_listener = partial(self.on_hi_eq_cut_button_push, i)
-                self.hi_eq_cut_buttons[i].add_value_listener(hi_cut_listener)
-                self.draw_mid_eq_cut(i)
+                low_cut_listener = partial(self.on_low_eq_cut_button_push, i)
+                self.low_eq_cut_buttons[i].add_value_listener(low_cut_listener)
+                self.draw_low_eq_cut(i)
 
+            # Initialize high EQ knobs:
+            for i in range(NUM_TRACKS):
+                hi_gain_listener = partial(self.on_hi_eq_knob_turn, i)
+                self.hi_eq_knobs[i].add_value_listener(hi_gain_listener)
 
     def on_nudge_back(self, value):
         """ Called when nudge back button pressed. """
@@ -326,15 +338,14 @@ class XoneK2(ControlSurface):
 
         The fader maps the range [0, 127] to the range [-inf dBm, 0 dB], by
         scaling the normalized fader MIDI value by the zero db value.
-        Note that Live uses tha value 1.0 as 6 dB and 0.85 for 0 dB.
+        Note: Live uses the value 1.0 as 6 dB and 0.85 for 0 dB.
 
         index: index of track to associate with this listener
         value: MIDI control change value, 0-127
         """
         track = self.tracks[index]
-        zero_db_value = 0.85000002384185791015625
         normalized_fader_value = (value + 1.0) / 128.0
-        new_volume = normalized_fader_value * zero_db_value
+        new_volume = normalized_fader_value * NORMALIZED_ZERO_DB
         track.mixer_device.volume.value = new_volume
 
     def update_devices_bindings(self, index):
@@ -357,34 +368,37 @@ class XoneK2(ControlSurface):
             if device_on_param is not None:
                 device_on_listener = partial(self.draw_eq_kill, index)
                 device_on_param.add_value_listener(device_on_listener)
-            # find 'low on' parameter
-            low_cut_param = get_eq3_parameter(eq3, 'LowOn')
-            self.eq3_low_cut_params[index] = low_cut_param
-            if low_cut_param is not None:
-                low_cut_listener = partial(self.draw_low_eq_cut, index)
-                low_cut_param.add_value_listener(low_cut_listener)
-            # find 'mid on' parameter
-            mid_cut_param = get_eq3_parameter(eq3, 'MidOn')
-            self.eq3_mid_cut_params[index] = mid_cut_param
-            if mid_cut_param is not None:
-                mid_cut_listener = partial(self.draw_mid_eq_cut, index)
-                mid_cut_param.add_value_listener(mid_cut_listener)
             # find 'hi on' parameter
             hi_cut_param = get_eq3_parameter(eq3, 'HighOn')
             self.eq3_hi_cut_params[index] = hi_cut_param
             if hi_cut_param is not None:
                 hi_cut_listener = partial(self.draw_hi_eq_cut, index)
                 hi_cut_param.add_value_listener(hi_cut_listener)
+            # find 'mid on' parameter
+            mid_cut_param = get_eq3_parameter(eq3, 'MidOn')
+            self.eq3_mid_cut_params[index] = mid_cut_param
+            if mid_cut_param is not None:
+                mid_cut_listener = partial(self.draw_mid_eq_cut, index)
+                mid_cut_param.add_value_listener(mid_cut_listener)
+            # find 'low on' parameter
+            low_cut_param = get_eq3_parameter(eq3, 'LowOn')
+            self.eq3_low_cut_params[index] = low_cut_param
+            if low_cut_param is not None:
+                low_cut_listener = partial(self.draw_low_eq_cut, index)
+                low_cut_param.add_value_listener(low_cut_listener)
+            # find 'hi gain' parameter
+            hi_gain_param = get_eq3_parameter(eq3, 'GainHi')
+            self.eq3_hi_gain_params[index] = hi_gain_param
         else:
             self.eq3_device_on_params[index] = None
-            self.eq3_low_cut_params[index] = None
-            self.eq3_mid_cut_params[index] = None
             self.eq3_hi_cut_params[index] = None
+            self.eq3_mid_cut_params[index] = None
+            self.eq3_low_cut_params[index] = None
         # Update views
         self.draw_eq_kill(index)
-        self.draw_low_eq_cut(index)
-        self.draw_mid_eq_cut(index)
         self.draw_hi_eq_cut(index)
+        self.draw_mid_eq_cut(index)
+        self.draw_low_eq_cut(index)
 
     def on_eq_kill_button_push(self, index, value):
         """
@@ -398,17 +412,17 @@ class XoneK2(ControlSurface):
             eq3_device_on.value = abs(eq3_device_on.value - 1.0)
         self.draw_eq_kill(index)
 
-    def on_low_eq_cut_button_push(self, index, value):
+    def on_hi_eq_cut_button_push(self, index, value):
         """
-        Kill the low EQ3 band of the associated track.
+        Kill the high EQ3 band of the associated track.
 
         index: index of track to associate with this listener
         value: MIDI note value (127 = pushed, 0 = depressed)
         """
-        eq3_low_cut = self.eq3_low_cut_params[index]
-        if eq3_low_cut is not None and value == 127:
-            eq3_low_cut.value = abs(eq3_low_cut.value - 1.0)
-        self.draw_low_eq_cut(index)
+        eq3_hi_cut = self.eq3_hi_cut_params[index]
+        if eq3_hi_cut is not None and value == 127:
+            eq3_hi_cut.value = abs(eq3_hi_cut.value - 1.0)
+        self.draw_mid_eq_cut(index)
 
     def on_mid_eq_cut_button_push(self, index, value):
         """
@@ -422,17 +436,38 @@ class XoneK2(ControlSurface):
             eq3_mid_cut.value = abs(eq3_mid_cut.value - 1.0)
         self.draw_mid_eq_cut(index)
 
-    def on_hi_eq_cut_button_push(self, index, value):
+    def on_low_eq_cut_button_push(self, index, value):
         """
-        Kill the high EQ3 band of the associated track.
+        Kill the low EQ3 band of the associated track.
 
         index: index of track to associate with this listener
         value: MIDI note value (127 = pushed, 0 = depressed)
         """
-        eq3_hi_cut = self.eq3_hi_cut_params[index]
-        if eq3_hi_cut is not None and value == 127:
-            eq3_hi_cut.value = abs(eq3_hi_cut.value - 1.0)
-        self.draw_mid_eq_cut(index)
+        eq3_low_cut = self.eq3_low_cut_params[index]
+        if eq3_low_cut is not None and value == 127:
+            eq3_low_cut.value = abs(eq3_low_cut.value - 1.0)
+        self.draw_low_eq_cut(index)
+
+    def on_hi_eq_knob_turn(self, index, value):
+        """
+        Change the gain of the high EQ of the associated track.
+
+        The knob is mapped to give 0 dB at 12 o'clock, 6 dB at full twist right
+        and -inf dB at full twist left.
+
+        index: index of track to associate with this listener
+        value: MIDI control change value, 0-127
+        """
+        eq3_high_gain = self.eq3_hi_gain_params[index]
+        normalized_knob_value = (value + 1.0) / 128.0
+        new_knob_value = normalized_knob_value * NORMALIZED_ZERO_DB
+        if normalized_knob_value <= 0.5:
+            DebugPrint.log_message("less then")
+        if normalized_knob_value > 0.5:
+            DebugPrint.log_message("greater then")
+        if eq3_high_gain is not None:
+            DebugPrint.log_message(str(normalized_knob_value))
+            eq3_high_gain.value = new_knob_value
 
     def draw_mute_button(self, index):
         """
@@ -473,18 +508,18 @@ class XoneK2(ControlSurface):
         else:
             self.dim_element(eq_kill_element, EQ_KILL_COLOR)
 
-    def draw_low_eq_cut(self, index):
+    def draw_hi_eq_cut(self, index):
         """
-        Light up or dim the low EQ button based on its state.
+        Light up or dim the high EQ button based on its state.
 
-        index: index of track associated with the low cut button
+        index: index of track associated with the high cut button
         """
-        low_cut_element = self.low_eq_cut_elements[index]
-        low_cut = self.eq3_low_cut_params[index]
-        if low_cut is not None and low_cut.value == 1.0:
-            self.light_up_element(low_cut_element, EQ_CUT_COLOR)
+        hi_cut_element = self.hi_eq_cut_elements[index]
+        hi_cut = self.eq3_hi_cut_params[index]
+        if hi_cut is not None and hi_cut.value == 1.0:
+            self.light_up_element(hi_cut_element, EQ_CUT_COLOR)
         else:
-            self.dim_element(low_cut_element, EQ_CUT_COLOR)
+            self.dim_element(hi_cut_element, EQ_CUT_COLOR)
 
     def draw_mid_eq_cut(self, index):
         """
@@ -499,18 +534,18 @@ class XoneK2(ControlSurface):
         else:
             self.dim_element(mid_cut_element, EQ_CUT_COLOR)
 
-    def draw_hi_eq_cut(self, index):
+    def draw_low_eq_cut(self, index):
         """
-        Light up or dim the high EQ button based on its state.
+        Light up or dim the low EQ button based on its state.
 
-        index: index of track associated with the high cut button
+        index: index of track associated with the low cut button
         """
-        hi_cut_element = self.hi_eq_cut_elements[index]
-        hi_cut = self.eq3_hi_cut_params[index]
-        if hi_cut is not None and hi_cut.value == 1.0:
-            self.light_up_element(hi_cut_element, EQ_CUT_COLOR)
+        low_cut_element = self.low_eq_cut_elements[index]
+        low_cut = self.eq3_low_cut_params[index]
+        if low_cut is not None and low_cut.value == 1.0:
+            self.light_up_element(low_cut_element, EQ_CUT_COLOR)
         else:
-            self.dim_element(hi_cut_element, EQ_CUT_COLOR)
+            self.dim_element(low_cut_element, EQ_CUT_COLOR)
 
     def light_up_element(self, element_name, color):
         """
