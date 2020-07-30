@@ -65,173 +65,179 @@ class XoneK2(ControlSurface):
             self.tracks = self.song.visible_tracks
             self.note_to_midi = self._create_note_to_midi_dict()
             self.element_color_to_midi = self._create_element_color_dict()
-            self.coarse_encoder_is_pushed = False
-            self.fine_encoder_pushed = False
+
             self.dim_all_elements()
-            self.eq3_devices = [None] * NUM_TRACKS
-            self.eq3_device_on_params = [None] * NUM_TRACKS
-            self.eq3_hi_cut_params = [None] * NUM_TRACKS
-            self.eq3_mid_cut_params = [None] * NUM_TRACKS
-            self.eq3_low_cut_params = [None] * NUM_TRACKS
-            self.eq3_hi_gain_params = [None] * NUM_TRACKS
-            self.eq3_mid_gain_params = [None] * NUM_TRACKS
-            self.eq3_low_gain_params = [None] * NUM_TRACKS
+            self.setup_data_structures()
+            self.initialize_controller_components()
 
-            # Mute data
-            self.mute_buttons = [
-                Button(0x1C), Button(0x1D),
-                Button(0x1E), Button(0x1F)]
-            self.mute_elements = [
-                'matrix_button_i', 'matrix_button_j',
-                'matrix_button_k', 'matrix_button_l']
-            # Cue data
-            self.cue_buttons = [
-                Button(0x24), Button(0x25),
-                Button(0x26), Button(0x27)]
-            self.cue_elements = [
-                'matrix_button_a', 'matrix_button_b',
-                'matrix_button_c', 'matrix_button_d']
-            # EQ kill data
-            self.eq_kill_buttons = [
-                Button(0x20), Button(0x21),
-                Button(0x22), Button(0x23)]
-            self.eq_kill_elements = [
-                'matrix_button_e', 'matrix_button_f',
-                'matrix_button_g', 'matrix_button_h']
-            # Track stop data
-            self.track_stop_buttons = [
-                Button(0x18), Button(0x19),
-                Button(0x1A), Button(0x1B)]
-            self.track_stop_elements = [
-                'matrix_button_m', 'matrix_button_n',
-                'matrix_button_o', 'matrix_button_p']
-            # Volume fader data
-            self.volume_faders = [
-                Fader(0x10), Fader(0x11),
-                Fader(0x12), Fader(0x13)]
-            # High EQ data
-            self.hi_eq_knobs = [
-                Knob(0x04), Knob(0x05),
-                Knob(0x06), Knob(0x07)]
-            self.hi_eq_cut_buttons = [
-                Button(0x30), Button(0x31),
-                Button(0x32), Button(0x33)]
-            self.hi_eq_cut_elements = [
-                'pot_switch_1', 'pot_switch_2',
-                'pot_switch_3', 'pot_switch_4']
-            # Mid EQ data
-            self.mid_eq_knobs = [
-                Knob(0x08), Knob(0x09),
-                Knob(0x0A), Knob(0x0B)]
-            self.mid_eq_cut_buttons = [
-                Button(0x2C), Button(0x2D),
-                Button(0x2E), Button(0x2F)]
-            self.mid_eq_cut_elements = [
-                'pot_switch_5', 'pot_switch_6',
-                'pot_switch_7', 'pot_switch_8']
-            # Low EQ data
-            self.low_eq_knobs = [
-                Knob(0x0C), Knob(0x0D),
-                Knob(0x0E), Knob(0x0F)]
-            self.low_eq_cut_buttons = [
-                Button(0x28), Button(0x29),
-                Button(0x2A), Button(0x2B)]
-            self.low_eq_cut_elements = [
-                'pot_switch_9', 'pot_switch_10',
-                'pot_switch_11', 'pot_switch_12']
+    def setup_data_structures(self):
+        self.coarse_encoder_is_pushed = False
+        self.fine_encoder_pushed = False
+        self.eq3_devices = [None] * NUM_TRACKS
+        self.eq3_device_on_params = [None] * NUM_TRACKS
+        self.eq3_hi_cut_params = [None] * NUM_TRACKS
+        self.eq3_mid_cut_params = [None] * NUM_TRACKS
+        self.eq3_low_cut_params = [None] * NUM_TRACKS
+        self.eq3_hi_gain_params = [None] * NUM_TRACKS
+        self.eq3_mid_gain_params = [None] * NUM_TRACKS
+        self.eq3_low_gain_params = [None] * NUM_TRACKS
 
-            # Find EQ devices and update bindings
-            for i in range(NUM_TRACKS):
-                track = self.tracks[i]
-                dev_change_listener = partial(self.update_devices_bindings, i)
-                track.add_devices_listener(dev_change_listener)
-                self.update_devices_bindings(i) # look for any existing devies
+        # Mute data
+        self.mute_buttons = [
+            Button(0x1C), Button(0x1D),
+            Button(0x1E), Button(0x1F)]
+        self.mute_elements = [
+            'matrix_button_i', 'matrix_button_j',
+            'matrix_button_k', 'matrix_button_l']
+        # Cue data
+        self.cue_buttons = [
+            Button(0x24), Button(0x25),
+            Button(0x26), Button(0x27)]
+        self.cue_elements = [
+            'matrix_button_a', 'matrix_button_b',
+            'matrix_button_c', 'matrix_button_d']
+        # EQ kill data
+        self.eq_kill_buttons = [
+            Button(0x20), Button(0x21),
+            Button(0x22), Button(0x23)]
+        self.eq_kill_elements = [
+            'matrix_button_e', 'matrix_button_f',
+            'matrix_button_g', 'matrix_button_h']
+        # Track stop data
+        self.track_stop_buttons = [
+            Button(0x18), Button(0x19),
+            Button(0x1A), Button(0x1B)]
+        self.track_stop_elements = [
+            'matrix_button_m', 'matrix_button_n',
+            'matrix_button_o', 'matrix_button_p']
+        # Volume fader data
+        self.volume_faders = [
+            Fader(0x10), Fader(0x11),
+            Fader(0x12), Fader(0x13)]
+        # High EQ data
+        self.hi_eq_knobs = [
+            Knob(0x04), Knob(0x05),
+            Knob(0x06), Knob(0x07)]
+        self.hi_eq_cut_buttons = [
+            Button(0x30), Button(0x31),
+            Button(0x32), Button(0x33)]
+        self.hi_eq_cut_elements = [
+            'pot_switch_1', 'pot_switch_2',
+            'pot_switch_3', 'pot_switch_4']
+        # Mid EQ data
+        self.mid_eq_knobs = [
+            Knob(0x08), Knob(0x09),
+            Knob(0x0A), Knob(0x0B)]
+        self.mid_eq_cut_buttons = [
+            Button(0x2C), Button(0x2D),
+            Button(0x2E), Button(0x2F)]
+        self.mid_eq_cut_elements = [
+            'pot_switch_5', 'pot_switch_6',
+            'pot_switch_7', 'pot_switch_8']
+        # Low EQ data
+        self.low_eq_knobs = [
+            Knob(0x0C), Knob(0x0D),
+            Knob(0x0E), Knob(0x0F)]
+        self.low_eq_cut_buttons = [
+            Button(0x28), Button(0x29),
+            Button(0x2A), Button(0x2B)]
+        self.low_eq_cut_elements = [
+            'pot_switch_9', 'pot_switch_10',
+            'pot_switch_11', 'pot_switch_12']
 
-            # Nudge buttons
-            nudge_up_btn = Button(0x0F)
-            nudge_back_btn = Button(0x0C)
-            nudge_up_btn.add_value_listener(self.on_nudge_up)
-            nudge_back_btn.add_value_listener(self.on_nudge_back)
+    def initialize_controller_components(self):
+        # Find EQ devices and update bindings
+        for i in range(NUM_TRACKS):
+            track = self.tracks[i]
+            dev_change_listener = partial(self.update_devices_bindings, i)
+            track.add_devices_listener(dev_change_listener)
+            self.update_devices_bindings(i) # look for any existing devies
 
-            # Tempo encoders
-            coarse_tempo_enc = Encoder(0x14)
-            coarse_tempo_push = Button(0x0D)
-            fine_tempo_enc = Encoder(0x15)
-            fine_tempo_pushed = Button(0x0E)
-            coarse_tempo_enc.add_value_listener(self.on_coarse_tempo_change)
-            coarse_tempo_push.add_value_listener(self.on_coarse_encoder_push)
-            fine_tempo_enc.add_value_listener(self.on_fine_tempo_change)
-            fine_tempo_pushed.add_value_listener(self.on_fine_encoder_push)
+        # Nudge buttons
+        nudge_up_btn = Button(0x0F)
+        nudge_back_btn = Button(0x0C)
+        nudge_up_btn.add_value_listener(self.on_nudge_up)
+        nudge_back_btn.add_value_listener(self.on_nudge_back)
 
-            # Initialize mute buttons
-            for i in range(NUM_TRACKS):
-                on_mute_change_listener = partial(self.draw_mute_button, i)
-                self.tracks[i].add_mute_listener(on_mute_change_listener)
-                on_mute_button_listener = partial(self.on_mute_button_push, i)
-                self.mute_buttons[i].add_value_listener(on_mute_button_listener)
-                self.draw_mute_button(i)
+        # Tempo encoders
+        coarse_tempo_enc = Encoder(0x14)
+        coarse_tempo_push = Button(0x0D)
+        fine_tempo_enc = Encoder(0x15)
+        fine_tempo_pushed = Button(0x0E)
+        coarse_tempo_enc.add_value_listener(self.on_coarse_tempo_change)
+        coarse_tempo_push.add_value_listener(self.on_coarse_encoder_push)
+        fine_tempo_enc.add_value_listener(self.on_fine_tempo_change)
+        fine_tempo_pushed.add_value_listener(self.on_fine_encoder_push)
 
-            # Initialize cue buttons
-            for i in range(NUM_TRACKS):
-                on_cue_change_listener = partial(self.draw_cue_button, i)
-                self.tracks[i].add_solo_listener(on_cue_change_listener)
-                on_cue_button_listener = partial(self.on_cue_button_push, i)
-                self.cue_buttons[i].add_value_listener(on_cue_button_listener)
-                self.draw_cue_button(i)
+        # Initialize mute buttons
+        for i in range(NUM_TRACKS):
+            on_mute_change_listener = partial(self.draw_mute_button, i)
+            self.tracks[i].add_mute_listener(on_mute_change_listener)
+            on_mute_button_listener = partial(self.on_mute_button_push, i)
+            self.mute_buttons[i].add_value_listener(on_mute_button_listener)
+            self.draw_mute_button(i)
 
-            # Initialize EQ kill buttons:
-            for i in range(NUM_TRACKS):
-                kill_push_listener = partial(self.on_eq_kill_button_push, i)
-                self.eq_kill_buttons[i].add_value_listener(kill_push_listener)
+        # Initialize cue buttons
+        for i in range(NUM_TRACKS):
+            on_cue_change_listener = partial(self.draw_cue_button, i)
+            self.tracks[i].add_solo_listener(on_cue_change_listener)
+            on_cue_button_listener = partial(self.on_cue_button_push, i)
+            self.cue_buttons[i].add_value_listener(on_cue_button_listener)
+            self.draw_cue_button(i)
 
-            # Initialize track stop buttons:
-            for i in range(NUM_TRACKS):
-                stop_listener = partial(self.on_track_stop_button_push, i)
-                self.track_stop_buttons[i].add_value_listener(stop_listener)
+        # Initialize EQ kill buttons:
+        for i in range(NUM_TRACKS):
+            kill_push_listener = partial(self.on_eq_kill_button_push, i)
+            self.eq_kill_buttons[i].add_value_listener(kill_push_listener)
 
-            # Initialize volume faders:
-            for i in range(NUM_TRACKS):
-                fader_move_listener = partial(self.on_volume_fader_move, i)
-                self.volume_faders[i].add_value_listener(fader_move_listener)
+        # Initialize track stop buttons:
+        for i in range(NUM_TRACKS):
+            stop_listener = partial(self.on_track_stop_button_push, i)
+            self.track_stop_buttons[i].add_value_listener(stop_listener)
 
-            # Initialize high EQ buttons:
-            for i in range(NUM_TRACKS):
-                hi_cut_listener = partial(self.on_eq_cut_button_push,
-                    self.eq3_hi_cut_params, self.draw_hi_eq_cut, i)
-                self.hi_eq_cut_buttons[i].add_value_listener(hi_cut_listener)
-                self.draw_mid_eq_cut(i)
+        # Initialize volume faders:
+        for i in range(NUM_TRACKS):
+            fader_move_listener = partial(self.on_volume_fader_move, i)
+            self.volume_faders[i].add_value_listener(fader_move_listener)
 
-            # Initialize mid EQ buttons:
-            for i in range(NUM_TRACKS):
-                mid_cut_listener = partial(self.on_eq_cut_button_push,
-                    self.eq3_mid_cut_params, self.draw_mid_eq_cut, i)
-                self.mid_eq_cut_buttons[i].add_value_listener(mid_cut_listener)
-                self.draw_mid_eq_cut(i)
+        # Initialize high EQ buttons:
+        for i in range(NUM_TRACKS):
+            hi_cut_listener = partial(self.on_eq_cut_button_push,
+                self.eq3_hi_cut_params, self.draw_hi_eq_cut, i)
+            self.hi_eq_cut_buttons[i].add_value_listener(hi_cut_listener)
+            self.draw_mid_eq_cut(i)
 
-            # Initialize low EQ buttons:
-            for i in range(NUM_TRACKS):
-                low_cut_listener = partial(self.on_eq_cut_button_push,
-                    self.eq3_low_cut_params, self.draw_low_eq_cut, i)
-                self.low_eq_cut_buttons[i].add_value_listener(low_cut_listener)
-                self.draw_low_eq_cut(i)
+        # Initialize mid EQ buttons:
+        for i in range(NUM_TRACKS):
+            mid_cut_listener = partial(self.on_eq_cut_button_push,
+                self.eq3_mid_cut_params, self.draw_mid_eq_cut, i)
+            self.mid_eq_cut_buttons[i].add_value_listener(mid_cut_listener)
+            self.draw_mid_eq_cut(i)
 
-            # Initialize high EQ knobs:
-            for i in range(NUM_TRACKS):
-                hi_gain_listener = partial(
-                    self.on_eq_knob_turn, self.eq3_hi_gain_params, i)
-                self.hi_eq_knobs[i].add_value_listener(hi_gain_listener)
+        # Initialize low EQ buttons:
+        for i in range(NUM_TRACKS):
+            low_cut_listener = partial(self.on_eq_cut_button_push,
+                self.eq3_low_cut_params, self.draw_low_eq_cut, i)
+            self.low_eq_cut_buttons[i].add_value_listener(low_cut_listener)
+            self.draw_low_eq_cut(i)
 
-            # Initialize mid EQ knobs:
-            for i in range(NUM_TRACKS):
-                mid_gain_listener = partial(
-                    self.on_eq_knob_turn, self.eq3_mid_gain_params, i)
-                self.mid_eq_knobs[i].add_value_listener(mid_gain_listener)
+        # Initialize high EQ knobs:
+        for i in range(NUM_TRACKS):
+            hi_gain_listener = partial(
+                self.on_eq_knob_turn, self.eq3_hi_gain_params, i)
+            self.hi_eq_knobs[i].add_value_listener(hi_gain_listener)
 
-            # Initialize low EQ knobs:
-            for i in range(NUM_TRACKS):
-                low_gain_listener = partial(
-                    self.on_eq_knob_turn, self.eq3_low_gain_params, i)
-                self.low_eq_knobs[i].add_value_listener(low_gain_listener)
+        # Initialize mid EQ knobs:
+        for i in range(NUM_TRACKS):
+            mid_gain_listener = partial(
+                self.on_eq_knob_turn, self.eq3_mid_gain_params, i)
+            self.mid_eq_knobs[i].add_value_listener(mid_gain_listener)
+
+        # Initialize low EQ knobs:
+        for i in range(NUM_TRACKS):
+            low_gain_listener = partial(
+                self.on_eq_knob_turn, self.eq3_low_gain_params, i)
+            self.low_eq_knobs[i].add_value_listener(low_gain_listener)
 
     def on_nudge_back(self, value):
         """ Called when nudge back button pressed. """
