@@ -69,6 +69,7 @@ class XoneK2(ControlSurface):
             self.dim_all_elements()
             self.eq3_devices = [None] * NUM_TRACKS
             self.eq3_device_on_params = [None] * NUM_TRACKS
+
             # Mute data
             self.mute_buttons = [
                 Button(0x1C), Button(0x1D),
@@ -90,6 +91,13 @@ class XoneK2(ControlSurface):
             self.eq_kill_elements = [
                 'matrix_button_e', 'matrix_button_f',
                 'matrix_button_g', 'matrix_button_h']
+
+            # Find EQ devices and update bindings
+            for i in range(NUM_TRACKS):
+                track = self.tracks[i]
+                dev_change_listener = partial(self.update_devices_bindings, i)
+                track.add_devices_listener(dev_change_listener)
+                self.update_devices_bindings(i) # look for any existing devies
 
             # Nudge buttons
             nudge_up_btn = Button(0x0F)
@@ -123,17 +131,14 @@ class XoneK2(ControlSurface):
                 self.cue_buttons[i].add_value_listener(on_cue_button_listener)
                 self.draw_cue_button(i)
 
-            # Find EQ devices and update bindings
-            for i in range(NUM_TRACKS):
-                track = self.tracks[i]
-                dev_change_listener = partial(self.update_devices_bindings, i)
-                track.add_devices_listener(dev_change_listener)
-                self.update_devices_bindings(i) # look for any existing devies
-
             # Initialize EQ kill buttons:
             for i in range(NUM_TRACKS):
                 push_listener = partial(self.on_eq_kill_button_push, i)
                 self.eq_kill_buttons[i].add_value_listener(push_listener)
+
+            # Initialize track stop buttons:
+            for i in range(NUM_TRACKS):
+                pass
 
     def on_nudge_back(self, value):
         """ Called when nudge back button pressed. """
