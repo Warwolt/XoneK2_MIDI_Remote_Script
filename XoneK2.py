@@ -91,6 +91,7 @@ class XoneK2(ControlSurface):
         self.mute_elements = [
             'matrix_button_i', 'matrix_button_j',
             'matrix_button_k', 'matrix_button_l']
+
         # Cue data
         self.cue_buttons = [
             Button(0x24), Button(0x25),
@@ -98,6 +99,7 @@ class XoneK2(ControlSurface):
         self.cue_elements = [
             'matrix_button_a', 'matrix_button_b',
             'matrix_button_c', 'matrix_button_d']
+
         # EQ kill data
         self.eq_kill_buttons = [
             Button(0x20), Button(0x21),
@@ -105,6 +107,7 @@ class XoneK2(ControlSurface):
         self.eq_kill_elements = [
             'matrix_button_e', 'matrix_button_f',
             'matrix_button_g', 'matrix_button_h']
+
         # Track stop data
         self.track_stop_buttons = [
             Button(0x18), Button(0x19),
@@ -112,10 +115,12 @@ class XoneK2(ControlSurface):
         self.track_stop_elements = [
             'matrix_button_m', 'matrix_button_n',
             'matrix_button_o', 'matrix_button_p']
+
         # Volume fader data
         self.volume_faders = [
             Fader(0x10), Fader(0x11),
             Fader(0x12), Fader(0x13)]
+
         # High EQ data
         self.hi_eq_knobs = [
             Knob(0x04), Knob(0x05),
@@ -126,6 +131,7 @@ class XoneK2(ControlSurface):
         self.hi_eq_cut_elements = [
             'pot_switch_1', 'pot_switch_2',
             'pot_switch_3', 'pot_switch_4']
+
         # Mid EQ data
         self.mid_eq_knobs = [
             Knob(0x08), Knob(0x09),
@@ -136,6 +142,7 @@ class XoneK2(ControlSurface):
         self.mid_eq_cut_elements = [
             'pot_switch_5', 'pot_switch_6',
             'pot_switch_7', 'pot_switch_8']
+
         # Low EQ data
         self.low_eq_knobs = [
             Knob(0x0C), Knob(0x0D),
