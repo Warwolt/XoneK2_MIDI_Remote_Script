@@ -56,7 +56,6 @@ class XoneK2(ControlSurface):
     """
     def __init__(self, c_instance):
         super(XoneK2, self).__init__(c_instance, False)
-        DebugPrint.log_message("XoneK2 constructor called")
 
         with self.component_guard():
             self._set_suppress_rebuild_requests(True)
