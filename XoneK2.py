@@ -91,6 +91,13 @@ class XoneK2(ControlSurface):
             self.eq_kill_elements = [
                 'matrix_button_e', 'matrix_button_f',
                 'matrix_button_g', 'matrix_button_h']
+            # Track stop data
+            self.track_stop_buttons = [
+                Button(0x18), Button(0x19),
+                Button(0x1A), Button(0x1B)]
+            self.track_stop_elements = [
+                'matrix_button_m', 'matrix_button_n',
+                'matrix_button_o', 'matrix_button_p']
 
             # Find EQ devices and update bindings
             for i in range(NUM_TRACKS):
@@ -133,12 +140,13 @@ class XoneK2(ControlSurface):
 
             # Initialize EQ kill buttons:
             for i in range(NUM_TRACKS):
-                push_listener = partial(self.on_eq_kill_button_push, i)
-                self.eq_kill_buttons[i].add_value_listener(push_listener)
+                kill_push_listener = partial(self.on_eq_kill_button_push, i)
+                self.eq_kill_buttons[i].add_value_listener(kill_push_listener)
 
             # Initialize track stop buttons:
             for i in range(NUM_TRACKS):
-                pass
+                stop_listener = partial(self.on_track_stop_button_push, i)
+                self.track_stop_buttons[i].add_value_listener(stop_listener)
 
     def on_nudge_back(self, value):
         """ Called when nudge back button pressed. """
@@ -243,6 +251,22 @@ class XoneK2(ControlSurface):
         if value == 127:
             track.solo = not track.solo
         self.draw_cue_button(index)
+
+    def on_track_stop_button_push(self, index, value):
+        """
+        Stops all clips on the associated track when pushed.
+
+        index: index of track to associate with this listener
+        value: MIDI note value (127 = pushed, 0 = depressed)
+        """
+        track = self.tracks[index]
+        stop_element = self.track_stop_elements[index]
+        if value == 127:
+            self.light_up_element(stop_element, 'red')
+            track.stop_all_clips(Quantized=False)
+        else:
+            self.dim_element(stop_element, 'red')
+
 
     def update_devices_bindings(self, index):
         """
