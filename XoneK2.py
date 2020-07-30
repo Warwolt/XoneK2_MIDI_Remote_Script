@@ -21,9 +21,11 @@ import inspect
 
 # The Xone K2 uses midi channel 15 (zero indexed gives 14)
 MIDI_CHANNEL_NUM = 15 - 1
+NUM_TRACKS = 4
 MUTE_BUTTON_COLOR = 'red'
 CUE_BUTTON_COLOR = 'orange'
 EQ_KILL_COLOR = 'red'
+
 
 def Button(note_num, name=None):
     button = ButtonElement(True, MIDI_NOTE_TYPE, MIDI_CHANNEL_NUM, note_num)
@@ -83,18 +85,18 @@ class XoneK2(ControlSurface):
             fine_tempo_pushed.add_value_listener(self.on_fine_encoder_push)
 
             # Mute buttons
-            self.mute_elements = ['matrix_button_i', 'matrix_button_j',
+            self.mute_elements = [
+                'matrix_button_i', 'matrix_button_j',
                 'matrix_button_k', 'matrix_button_l']
-            mute_buttons = [Button(0x1C), Button(0x1D),
+            mute_buttons = [
+                Button(0x1C), Button(0x1D),
                 Button(0x1E), Button(0x1F)]
-            for i in range(4):
-                track = self.tracks[i]
-                track.add_mute_listener(partial(self.on_track_mute_change, i))
-                mute_buttons[i].add_value_listener(
-                    partial(self.on_mute_button_push, i))
-                if not track.mute:
-                    self.light_up_element(
-                        self.mute_elements[i], MUTE_BUTTON_COLOR)
+            for i in range(NUM_TRACKS):
+                on_mute_change_listener = partial(self.draw_mute_button, i)
+                self.tracks[i].add_mute_listener(on_mute_change_listener)
+                on_mute_button_listener = partial(self.on_mute_button_push, i)
+                mute_buttons[i].add_value_listener(on_mute_button_listener)
+                self.draw_mute_button(i)
 
             # Cue buttons
             self.cue_elements = [
@@ -103,10 +105,9 @@ class XoneK2(ControlSurface):
             cue_buttons = [
                 Button(0x24), Button(0x25),
                 Button(0x26), Button(0x27)]
-            for i in range(4):
-                track = self.tracks[i]
+            for i in range(NUM_TRACKS):
                 on_cue_change_listener = partial(self.draw_cue_button, i)
-                track.add_solo_listener(on_cue_change_listener)
+                self.tracks[i].add_solo_listener(on_cue_change_listener)
                 on_cue_button_listener = partial(self.on_cue_button_push, i)
                 cue_buttons[i].add_value_listener(on_cue_button_listener)
                 self.draw_cue_button(i)
@@ -119,7 +120,7 @@ class XoneK2(ControlSurface):
                 Button(0x20), Button(0x21),
                 Button(0x22), Button(0x23)]
             self.eq3_device_on_params = []
-            for i in range(4):
+            for i in range(NUM_TRACKS):
                 eq3 = find_eq3_device(self.tracks[i])
                 if eq3 is None:
                     continue
@@ -205,19 +206,6 @@ class XoneK2(ControlSurface):
         else:
             self._fine_encoder_is_pushed = False
 
-    def on_track_mute_change(self, track_index):
-        """
-        Used to keep mute button led in sync with track muted state.
-
-        track_index: index of track to associate with this listener
-        """
-        track = self.tracks[track_index]
-        mute_element = self.mute_elements[track_index]
-        if not track.mute:
-            self.light_up_element(mute_element, MUTE_BUTTON_COLOR)
-        else:
-            self.dim_element(mute_element, MUTE_BUTTON_COLOR)
-
     def on_mute_button_push(self, track_index, value):
         """
         Toggles the muted state of the associated track.
@@ -258,9 +246,23 @@ class XoneK2(ControlSurface):
             eq3_device_on.value = abs(eq3_device_on.value - 1.0)
         self.draw_eq_kill(track_index)
 
+    def draw_mute_button(self, track_index):
+        """
+        Light up or dim the mute button based on its state.
+
+        track_index: index of track associated with the mute button
+        """
+        track = self.tracks[track_index]
+        mute_element = self.mute_elements[track_index]
+        if not track.mute:
+            self.light_up_element(mute_element, MUTE_BUTTON_COLOR)
+        else:
+            self.dim_element(mute_element, MUTE_BUTTON_COLOR)
+
     def draw_cue_button(self, track_index):
         """
         Light up or dim the cue button based on its state.
+
         track_index: index of track associated with the cue button
         """
         track = self.tracks[track_index]
@@ -273,6 +275,7 @@ class XoneK2(ControlSurface):
     def draw_eq_kill(self, track_index):
         """
         Light up or dim the EQ kill button based on its state.
+
         track_index: index of track associated with the eq kill button
         """
         eq_kill_element = self.eq_kill_elements[track_index]
