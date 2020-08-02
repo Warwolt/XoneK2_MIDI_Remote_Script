@@ -74,6 +74,7 @@ class XoneK2(ControlSurface):
     def setup_data_structures(self):
         self.coarse_encoder_is_pushed = False
         self.fine_encoder_pushed = False
+        self.scrobble_encoder_pushed = [False] * NUM_TRACKS
         self.eq3_devices = [None] * NUM_TRACKS
         self.eq3_device_on_params = [None] * NUM_TRACKS
         self.eq3_hi_cut_params = [None] * NUM_TRACKS
@@ -152,6 +153,14 @@ class XoneK2(ControlSurface):
         self.low_eq_cut_elements = [
             'pot_switch_9', 'pot_switch_10',
             'pot_switch_11', 'pot_switch_12']
+
+        # Scrobble data
+        self.scrobble_knobs = [
+            Knob(0x00), Knob(0x01),
+            Knob(0x02), Knob(0x03)]
+        self.scrobble_push = [
+            Button(0x34), Button(0x35),
+            Button(0x36), Button(0x37)]
 
     def initialize_controller_components(self):
         # Find EQ devices and update bindings
@@ -247,6 +256,13 @@ class XoneK2(ControlSurface):
                 self.on_eq_knob_turn, self.eq3_low_gain_params, i)
             self.low_eq_knobs[i].add_value_listener(low_gain_listener)
 
+        # Initialize scrobble knobs:
+        for i in range(NUM_TRACKS):
+            scrobble_encoder_listener = partial(self.on_scrobble_change, i)
+            scrobble_push_listener = partial(self.on_scrobble_encoder_push, i)
+            self.scrobble_knobs[i].add_value_listener(scrobble_encoder_listener)
+            self.scrobble_push[i].add_value_listener(scrobble_push_listener)
+
     def on_nudge_back(self, value):
         """ Called when nudge back button pressed. """
         if value == 127:
@@ -302,12 +318,12 @@ class XoneK2(ControlSurface):
         value: MIDI note value (1 = right turn, 127 = left turn)
         """
         if value == 1:
-            if self._fine_encoder_is_pushed:
+            if self.fine_encoder_pushed:
                 self.song.tempo += 0.01
             else:
                 self.song.tempo += 0.1
         else:
-            if self._fine_encoder_is_pushed:
+            if self.fine_encoder_pushed:
                 self.song.tempo -= 0.01
             else:
                 self.song.tempo -= 0.1
@@ -319,9 +335,9 @@ class XoneK2(ControlSurface):
         value: MIDI note value (127 = pushed, 0 = depressed)
         """
         if value == 127:
-            self._fine_encoder_is_pushed = True
+            self.fine_encoder_pushed = True
         else:
-            self._fine_encoder_is_pushed = False
+            self.fine_encoder_pushed = False
 
     def on_mute_button_push(self, index, value):
         """
@@ -500,6 +516,35 @@ class XoneK2(ControlSurface):
                 upper_y_value = scaled_knob_value * upper_y_range
                 new_gain_value = lower_y_max + upper_y_value
             gain_param.value = new_gain_value
+
+    def on_scrobble_encoder_push(self, index, value):
+        """
+        Called when scrobble knob is pushed/released and stores it's state
+
+        index: index of track to associate with this listener.
+        value: MIDI note value (127 = pushed, 0 = depressed)
+        """
+        self.scrobble_encoder_pushed[index] = True if value == 127 else False
+
+    def on_scrobble_change(self, index, value):
+        """
+        Called when scrobble knob is turned, moves beat forward/backward.
+
+        Moves the playback one bar forward/backward, or a quarter beat if
+        the knob is pressed.
+
+        index: index of track to associate with this listener.
+        value: MIDI note value (1 = right turn, 127 = left turn)
+        """
+        track = self.tracks[index]
+        playback_index = track.playing_slot_index
+        encoder_pushed = self.scrobble_encoder_pushed[index]
+        # Move playback position if clip is playing
+        if playback_index > -1:
+            num_beats = 1 if encoder_pushed else 4
+            playback_offset = -num_beats if value == 127 else num_beats
+            clip = track.clip_slots[playback_index].clip
+            clip.position += playback_offset
 
     def draw_mute_button(self, index):
         """
